@@ -1,6 +1,6 @@
 <?php
 
-namespace Gathuku\Mpesa\Facades;
+namespace Bmunyoki\Mpesa\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
@@ -8,6 +8,6 @@ class Mpesa extends Facade{
 
     protected static function getFacadeAccessor(){
 
-        return 'bmunyoki-mpesa';
+        return 'Bmunyoki-mpesa';
     }
 }

@@ -13,16 +13,16 @@
     "require": {},
     "autoload": {
         "psr-4": {
-            "bmunyoki\\Mpesa\\":"src/"
+            "Bmunyoki\\Mpesa\\":"src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "bmunyoki\\Mpesa\\MpesaServiceProvider"
+                "Bmunyoki\\Mpesa\\MpesaServiceProvider"
             ],
             "aliases":{
-                "Mpesa":"bmunyoki\\Mpesa\\Facades\\Mpesa"
+                "Mpesa":"Bmunyoki\\Mpesa\\Facades\\Mpesa"
             }
         
         }

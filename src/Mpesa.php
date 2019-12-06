@@ -1,6 +1,6 @@
 <?php
 
-namespace Gathuku\Mpesa;
+namespace Bmunyoki\Mpesa;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\File;
 
