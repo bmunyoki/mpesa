@@ -31,7 +31,7 @@ class MpesaServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->bind('gathuku-mpesa',function(){
+        $this->app->bind('bmunyoki-mpesa',function(){
              return new Mpesa();
         });
     }

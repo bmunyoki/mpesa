@@ -8,6 +8,6 @@ class Mpesa extends Facade{
 
     protected static function getFacadeAccessor(){
 
-        return 'gathuku-mpesa';
+        return 'bmunyoki-mpesa';
     }
 }

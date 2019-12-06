@@ -438,14 +438,7 @@ class Mpesa {
 		$url = $this->base_url.'stkpush/v1/processrequest';
 		$response = $this->submit_request($url, $data);
 		$result = json_decode($response);
-            dd($result);
-		//print_r($result);
-		if($c_id = $result->CheckoutRequestID){
-			return $this->lnmo_query($c_id);
-		}else{
-			return FALSE;
-		}
-		//return $res;
+		return $result;
 	}
 
 	private function lnmo_query($checkoutRequestID = null){
