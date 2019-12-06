@@ -1,0 +1,30 @@
+{
+    "name": "bmunyoki/mpesa",
+    "description": "Laravel Mpesa package providing Mpesa STK, B2C, C2B and Recersal functionality",
+    "type": "laravel",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Benjamin Munyoki",
+            "email": "munyokibenjamin@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Bmunyoki\\Mpesa\\":"src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bmunyoki\\Mpesa\\MpesaServiceProvider"
+            ],
+            "aliases":{
+                "Mpesa":"Bmunyoki\\Mpesa\\Facades\\Mpesa"
+            }
+        
+        }
+    }
+}
