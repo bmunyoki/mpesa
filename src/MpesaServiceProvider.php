@@ -11,11 +11,8 @@ class MpesaServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function boot()
-    {
-        //
-
-       // require __DIR__.'/routes/web.php';
+    public function boot(){
+        // require __DIR__.'/routes/web.php';
         $this->loadRoutesFrom(__DIR__.'/routes/web.php');
 
         //publish the config files
@@ -29,8 +26,7 @@ class MpesaServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function register()
-    {
+    public function register(){
         $this->app->bind('bmunyoki-mpesa',function(){
              return new Mpesa();
         });
