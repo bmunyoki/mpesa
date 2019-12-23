@@ -129,6 +129,14 @@ class Mpesa {
      	$this->bctimeout=config('mpesa.b2c_timeout');
      	$this->bcresult=config('mpesa.b2c_result');
 
+     	// Till balance URLS
+     	$this->balresult=config('mpesa.balance_callback');
+     	$this->baltimeout=config('mpesa.balance_timeout');
+
+     	// Reversal URLs
+     	$this->reverseresult = config('mpesa.reversal_result_callback');
+     	$this->reversetimeout = config('mpesa.reversal_timeout_callback');
+
      	// Set the access token
 		$this->access_token = $this->getAccessToken();
 	}

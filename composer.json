@@ -1,6 +1,6 @@
 {
     "name": "bmunyoki/mpesa",
-    "description": "Laravel Mpesa package providing Mpesa STK, B2C, C2B and Recersal functionality",
+    "description": "Laravel Mpesa package providing Mpesa STK, B2C, C2B and Reversal functionality",
     "type": "laravel",
     "license": "MIT",
     "authors": [
