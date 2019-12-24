@@ -158,6 +158,7 @@ class Mpesa {
 			$pubkey=File::get(__DIR__.'/cert/sandbox.cer');
 		}else{
 			$pubkey=File::get(__DIR__.'/cert/production.cer');
+			$this->getAccessToken();
 		}
 		
 		openssl_public_encrypt($this->initiator_password, $output, $pubkey, OPENSSL_PKCS1_PADDING);
