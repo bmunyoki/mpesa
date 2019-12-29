@@ -162,6 +162,7 @@ class Mpesa {
 		
 		openssl_public_encrypt($this->initiator_password, $output, $pubkey, OPENSSL_PKCS1_PADDING);
         $this->cred = base64_encode($output);
+        return $this->cred;
 	}
 
 
