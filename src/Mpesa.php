@@ -191,7 +191,7 @@ class Mpesa {
 		$ch = curl_init();
 		$url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 		if(config('mpesa.mpesa_env')=='sandbox'){
-			$url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+			$url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 		}
 		curl_setopt($ch, CURLOPT_URL, $url);
 
