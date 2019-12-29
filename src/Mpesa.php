@@ -163,6 +163,26 @@ class Mpesa {
 		
 		openssl_public_encrypt($this->initiator_password, $output, $pubkey, OPENSSL_PKCS1_PADDING);
         $this->cred = base64_encode($output);
+        echo "===============From Set Cred=================";
+		echo "<br>";
+		echo "Access token: ".$access_token."<br>";
+		echo "<br>";
+		echo "Hash: ".env('MPESA_SECURE_HASH')."<br>";
+		echo "<br>";
+        echo "Consumer Key: ".$this->consumer_key."<br>";
+        echo "<br>";
+        echo "Consumer secret: ".$this->consumer_secret."<br>";
+        echo "<br>";
+        echo "Environment: ".env('MPESA_ENV')."<br>";
+        echo "<br>";
+        echo "Pass key: ".$this->lipa_na_mpesa_passkey."<br>";
+        echo "<br>";
+        echo "Paybill: ".$this->paybill."<br>";
+        echo "<br>";
+        echo "Username: ".$this->initiator_username."<br>";
+        echo "<br>";
+        echo "Password: ".$this->initiator_password."<br>";
+        echo "<br>";
 	}
 
 
@@ -185,11 +205,32 @@ class Mpesa {
         
         if(!$access_token){
 			// Invalid token
-			return FALSE;
+			//return FALSE;
+			echo "Access token not set";
 		}
+		echo "===============From Get Access Token=================";
+		echo "<br>";
+		echo "Access token: ".$access_token."<br>";
+		echo "<br>";
+		echo "Hash: ".env('MPESA_SECURE_HASH')."<br>";
+		echo "<br>";
+        echo "Consumer Key: ".$this->consumer_key."<br>";
+        echo "<br>";
+        echo "Consumer secret: ".$this->consumer_secret."<br>";
+        echo "<br>";
+        echo "Environment: ".env('MPESA_ENV')."<br>";
+        echo "<br>";
+        echo "Pass key: ".$this->lipa_na_mpesa_passkey."<br>";
+        echo "<br>";
+        echo "Paybill: ".$this->paybill."<br>";
+        echo "<br>";
+        echo "Username: ".$this->initiator_username."<br>";
+        echo "<br>";
+        echo "Password: ".$this->initiator_password."<br>";
+        echo "<br>";
 
-		$this->access_token = $access_token;
-        return $access_token;
+		/*$this->access_token = $access_token;
+        return $access_token;*/
         
 	}
 
