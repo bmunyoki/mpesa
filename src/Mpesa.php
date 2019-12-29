@@ -158,7 +158,6 @@ class Mpesa {
 			$pubkey=File::get(__DIR__.'/cert/sandbox.cer');
 		}else{
 			$pubkey=File::get(__DIR__.'/cert/production.cer');
-			$this->getAccessToken();
 		}
 		
 		openssl_public_encrypt($this->initiator_password, $output, $pubkey, OPENSSL_PKCS1_PADDING);
@@ -195,12 +194,12 @@ class Mpesa {
 	}
 
 	private function submit_request($url, $data) { 
-		if(isset($this->access_token)){
+		/*if(isset($this->access_token)){
 			$access_token = $this->access_token;
 		}else{
 			$access_token = $this->getAccessToken();
-		}
-		
+		}*/
+		$access_token = $this->getAccessToken();
 		if($access_token != '' || $access_token !== FALSE){
 			$curl = curl_init();
 			curl_setopt($curl, CURLOPT_URL, $url);
@@ -216,6 +215,7 @@ class Mpesa {
 		}else{
 			return FALSE;
 		}
+
 	}
 
 	/**
@@ -229,7 +229,6 @@ class Mpesa {
 	 */
 
 	public function b2c($amount, $phone, $command_id, $remarks){
-		$this->setCred();
 		$request_data = array(
 			'InitiatorName' => $this->initiator_username,
 			'SecurityCredential' => $this->cred,
