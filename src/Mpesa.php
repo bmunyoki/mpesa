@@ -175,7 +175,7 @@ class Mpesa {
         echo "<br>";
         echo "Environment: ".env('MPESA_ENV')."<br>";
         echo "<br>";
-        echo "Pass key: ".$this->lipa_na_mpesa_passkey."<br>";
+        echo "Pass key: ".$this->lipa_na_mpesa_key."<br>";
         echo "<br>";
         echo "Paybill: ".$this->paybill."<br>";
         echo "<br>";
@@ -220,7 +220,7 @@ class Mpesa {
         echo "<br>";
         echo "Environment: ".env('MPESA_ENV')."<br>";
         echo "<br>";
-        echo "Pass key: ".$this->lipa_na_mpesa_passkey."<br>";
+        echo "Pass key: ".$this->lipa_na_mpesa_key."<br>";
         echo "<br>";
         echo "Paybill: ".$this->paybill."<br>";
         echo "<br>";
