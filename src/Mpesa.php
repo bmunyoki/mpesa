@@ -191,16 +191,15 @@ class Mpesa {
 
 		$this->access_token = $access_token;
         return $access_token;
-        
 	}
 
 	private function submit_request($url, $data) { 
-		/*if(isset($this->access_token)){
+		if(isset($this->access_token)){
 			$access_token = $this->access_token;
 		}else{
 			$access_token = $this->getAccessToken();
-		}*/
-		$access_token = $this->getAccessToken();
+		}
+		
 		if($access_token != '' || $access_token !== FALSE){
 			$curl = curl_init();
 			curl_setopt($curl, CURLOPT_URL, $url);
@@ -230,6 +229,7 @@ class Mpesa {
 	 */
 
 	public function b2c($amount, $phone, $command_id, $remarks){
+		$this->setCred();
 		$request_data = array(
 			'InitiatorName' => $this->initiator_username,
 			'SecurityCredential' => $this->cred,
