@@ -169,7 +169,12 @@ class Mpesa {
 	public function getAccessToken(){
 		$credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
 		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials');
+		$url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+		if(config('mpesa.mpesa_env')=='sandbox'){
+			$url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+		}
+		curl_setopt($ch, CURLOPT_URL, $url);
+
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
 		$response = curl_exec($ch);
