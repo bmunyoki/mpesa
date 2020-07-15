@@ -17,12 +17,14 @@ class Mpesa {
 	 * @var string $consumer_key
 	 */
 	public $consumer_key;
+	public $bulk_consumer_key;
 
 	/**
 	 * The consumer key secret
 	 * @var string $consumer_secret
 	 */
 	public $consumer_secret;
+	public $bulk_consumer_secret;
 
 	/**
 	 * The MPesa Paybill number
@@ -110,6 +112,8 @@ class Mpesa {
 		
 		$this->consumer_key = config('mpesa.consumer_key');
 		$this->consumer_secret = config('mpesa.consumer_secret');
+		$this->bulk_consumer_key = config('mpesa.bulk_consumer_key');
+		$this->bulk_consumer_secret = config('mpesa.bulk_consumer_secret');
 		$this->paybill =config('mpesa.paybill'); 
 		$this->lipa_na_mpesa = config('mpesa.lipa_na_mpesa');
 		$this->lipa_na_mpesa_key = config('mpesa.lipa_na_mpesa_passkey');	
@@ -166,8 +170,12 @@ class Mpesa {
 	}
 
 
-	public function getAccessToken(){
+	public function getAccessToken($type){
 		$credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
+		if ($type == "BULK") {
+			$credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
+		}
+
 		$ch = curl_init();
 		$url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 		if(config('mpesa.mpesa_env')=='sandbox'){
@@ -193,12 +201,8 @@ class Mpesa {
         return $access_token;
 	}
 
-	private function submit_request($url, $data) { 
-		if(isset($this->access_token)){
-			$access_token = $this->access_token;
-		}else{
-			$access_token = $this->getAccessToken();
-		}
+	private function submit_request($url, $data, $type) { 
+		$access_token = $this->getAccessToken($type);
 		
 		if($access_token != '' || $access_token !== FALSE){
 			$curl = curl_init();
@@ -244,7 +248,7 @@ class Mpesa {
 		);
 		$data = json_encode($request_data);
 		$url = $this->base_url.'b2c/v1/paymentrequest';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "BULK");
 		return $response;
 	}
 
@@ -275,7 +279,7 @@ class Mpesa {
 		);
 		$data = json_encode($request_data);
 		$url = $this->base_url.'b2b/v1/paymentrequest';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "BULK");
 		return $response;
 	}
 
@@ -300,7 +304,7 @@ class Mpesa {
 		//header('Content-Type: application/json');
 
 		$url = $this->base_url.'c2b/v1/registerurl';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "C2B");
 		return $response;
 	}
 
@@ -325,7 +329,7 @@ class Mpesa {
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'c2b/v1/simulate';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "C2B");
 		return $response;
 	}
 
@@ -349,7 +353,7 @@ class Mpesa {
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'accountbalance/v1/query';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "BULK");
 		return $response;
 	}
 
@@ -377,7 +381,7 @@ class Mpesa {
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'transactionstatus/v1/query';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "BULK");
 		return $response;
 	}
 
@@ -407,7 +411,7 @@ class Mpesa {
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'reversal/v1/request';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "BULK");
 		return $response;
 	}
 
@@ -439,7 +443,7 @@ class Mpesa {
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'stkpush/v1/processrequest';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "C2B");
 		$result = json_decode($response);
 		return $result;
 	}
@@ -460,7 +464,7 @@ class Mpesa {
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'stkpushquery/v1/query';
-		$response = $this->submit_request($url, $data);
+		$response = $this->submit_request($url, $data, "C2B");
 		return $response;
 	}
 

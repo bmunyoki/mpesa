@@ -9,12 +9,14 @@ return [
     |------------------------------------------
     */
     'consumer_key'   => '',
+    'bulk_consumer_key'   => '',
 
     /*-----------------------------------------
     |The App consumer Secret
     |------------------------------------------
     */
     'consumer_secret' => '',
+    'bulk_consumer_secret' => '',
 
     /*-----------------------------------------
     |The paybill number
