@@ -142,7 +142,7 @@ class Mpesa {
      	$this->reversetimeout = config('mpesa.reversal_timeout_callback');
 
      	// Set the access token
-		$this->access_token = $this->getAccessToken();
+		$this->access_token = $this->getAccessToken("C2B");
 	}
 
 	/**
