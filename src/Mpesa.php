@@ -140,9 +140,10 @@ class Mpesa {
      	// Reversal URLs
      	$this->reverseresult = config('mpesa.reversal_result_callback');
      	$this->reversetimeout = config('mpesa.reversal_timeout_callback');
-
+     	
      	// Set the access token
 		$this->access_token = $this->getAccessToken("C2B");
+		Log::info("Access token: ".$this->access_token);
 	}
 
 	/**
@@ -188,7 +189,9 @@ class Mpesa {
 		$response = curl_exec($ch);
 		curl_close($ch);
 		$response = json_decode($response);
+		
 		$access_token = $response->access_token;
+		//$access_token = "GUiYLlVpUyS8o5DKUXXgiaF2YQ1F";
 		// The above $access_token expires after an hour, find a way to cache it to minimize requests to the server
         
         if(!$access_token){
