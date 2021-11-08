@@ -90,6 +90,7 @@ class Mpesa {
 	public $cbvalidate;
 	public $cbconfirm;
 	public $lnmocallback;
+	public $request_type;
 	/**
 	 * Construct method
 	 *
@@ -141,6 +142,8 @@ class Mpesa {
      	// Reversal URLs
      	$this->reverseresult = config('mpesa.reversal_result_callback');
      	$this->reversetimeout = config('mpesa.reversal_timeout_callback');
+
+     	$this->request_type = "C2B";
      	
      	// Set the access token
 		$this->access_token = $this->getAccessToken("C2B");
@@ -172,39 +175,39 @@ class Mpesa {
 	}
 
 
-	public function getAccessToken($type){
-		$accessToken = Cache::remember('mpesa_access_token', 50, function() {
-			$credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
-			if ($type == "BULK") {
-				$credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
-			}
+	public function getAccessToken($request_type){
+        $accessToken = Cache::remember('mpesa_access_token', 50, function() {
+            $credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
+            if ($this->request_type == "BULK") {
+                    $credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
+            }
 
-			$ch = curl_init();
-			$url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-			if(config('mpesa.mpesa_env')=='sandbox'){
-				$url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-			}
-			curl_setopt($ch, CURLOPT_URL, $url);
+            $ch = curl_init();
+            $url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+            if(config('mpesa.mpesa_env')=='sandbox'){
+                    $url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+            }
+            curl_setopt($ch, CURLOPT_URL, $url);
 
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
-			$response = curl_exec($ch);
-			curl_close($ch);
-			$response = json_decode($response);
-			
-			$access_token = $response->access_token;
-	        
-	        if(!$access_token){
-				return FALSE;
-			}
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
+            $response = curl_exec($ch);
+            curl_close($ch);
+            $response = json_decode($response);
+            \Log::info(json_encode($response, true));
+            $access_token = $response->access_token;
 
-			return $access_token;
-		});
-		
+        	if(!$access_token){
+                return FALSE;
+            }
 
-		$this->access_token = $accessToken;
+            return $access_token;
+        });
+
+
+        $this->access_token = $accessToken;
         return $accessToken;
-	}
+    }
 
 	private function submit_request($url, $data, $type) { 
 		$access_token = $this->getAccessToken($type);
