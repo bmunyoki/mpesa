@@ -176,37 +176,38 @@ class Mpesa {
 
 
 	public function getAccessToken($request_type){
-        $accessToken = Cache::remember('mpesa_access_token', 50, function() {
-            $credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
-            if ($this->request_type == "BULK") {
-                    $credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
-            }
-
-            $ch = curl_init();
-            $url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-            if(config('mpesa.mpesa_env')=='sandbox'){
-                    $url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-            }
-            curl_setopt($ch, CURLOPT_URL, $url);
-
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
-            $response = curl_exec($ch);
-            curl_close($ch);
-            $response = json_decode($response);
-            \Log::info(json_encode($response, true));
-            $access_token = $response->access_token;
-
-        	if(!$access_token){
-                return FALSE;
-            }
-
-            return $access_token;
+        /*$accessToken = Cache::remember('mpesa_access_token', 50, function() {
+            
         });
-
-
         $this->access_token = $accessToken;
-        return $accessToken;
+        return $accessToken; */
+
+        $credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
+        if ($this->request_type == "BULK") {
+                $credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
+        }
+
+        $ch = curl_init();
+        $url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+        if(config('mpesa.mpesa_env')=='sandbox'){
+            $url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+        }
+        curl_setopt($ch, CURLOPT_URL, $url);
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
+        $response = curl_exec($ch);
+        curl_close($ch);
+        $response = json_decode($response);
+        \Log::info(json_encode($response, true));
+        //$access_token = @$response->access_token;
+
+    	if($response == null){
+            return FALSE;
+        }
+
+        $this->access_token = $access_token;
+        return $access_token;
     }
 
 	private function submit_request($url, $data, $type) { 
