@@ -206,6 +206,7 @@ class Mpesa {
             return FALSE;
         }
 
+        $access_token = @$response->access_token;
         $this->access_token = $access_token;
         return $access_token;
     }
