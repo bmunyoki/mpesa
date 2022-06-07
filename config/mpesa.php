@@ -2,24 +2,28 @@
 
 return [
 
-     //Specify the environment mpesa is running, sandbox or production
-     'mpesa_env' => 'sandbox',
     /*-----------------------------------------
-    |The App consumer key
+    |Mpesa environment: sandbox or production
+    |------------------------------------------
+    */
+     'mpesa_env' => 'sandbox',
+     
+    /*-----------------------------------------
+    |The App consumer key for C2B and B2c (Bulk)
     |------------------------------------------
     */
     'consumer_key'   => '',
     'bulk_consumer_key'   => '',
 
     /*-----------------------------------------
-    |The App consumer Secret
+    |The App consumer Secret for C2B and B2c (Bulk)
     |------------------------------------------
     */
     'consumer_secret' => '',
     'bulk_consumer_secret' => '',
 
     /*-----------------------------------------
-    |The paybill number
+    |The paybill number / till number
     |------------------------------------------
     */
     'paybill'         => ,
@@ -37,7 +41,7 @@ return [
     'lipa_na_mpesa_passkey' => '',
 
     /*-----------------------------------------
-    |Initiator Username.
+    |Initiator Username for B2C
     |------------------------------------------
     */
     'initiator_username' => '',
@@ -58,7 +62,7 @@ return [
     |Lipa na Mpesa Online callback url
     |------------------------------------------
     */
-    'lnmocallback' => '',
+    'lnmo_callback_url' => '',
 
      /*-----------------------------------------
     |C2B  Validation url
@@ -82,7 +86,31 @@ return [
     |B2C results url
     |------------------------------------------
     */
-    'b2c_result' => ''
+    'b2c_result' => '',
+
+    /*-----------------------------------------
+    |B2C Status Timeout url
+    |------------------------------------------
+    */
+    'b2c_status_timeout' => '',
+
+    /*-----------------------------------------
+    |B2C status callback url
+    |------------------------------------------
+    */
+    'b2c_status_callback' => '',
+
+    /*-----------------------------------------
+    |Reversal result callback url
+    |------------------------------------------
+    */
+    'reversal_result_callback' => '',
+
+    /*-----------------------------------------
+    |Reversal timeout callback url
+    |------------------------------------------
+    */
+    'reversal_timeout_callback' => ''
 
 
 ];

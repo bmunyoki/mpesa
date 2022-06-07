@@ -18,6 +18,11 @@ class Mpesa {
 	 * @var string $consumer_key
 	 */
 	public $consumer_key;
+
+	/**
+	 * The consumer key
+	 * @var string $bulk_consumer_key
+	 */
 	public $bulk_consumer_key;
 
 	/**
@@ -25,6 +30,11 @@ class Mpesa {
 	 * @var string $consumer_secret
 	 */
 	public $consumer_secret;
+
+	/**
+	 * The consumer key secret
+	 * @var string $bul_consumer_secret
+	 */
 	public $bulk_consumer_secret;
 
 	/**
@@ -58,12 +68,6 @@ class Mpesa {
 	public $initiator_password;
 
 	/**
-	 * The Callback common part of the URL eg "https://domain.com/callbacks/"
-	 * @var string $initiator_password
-	 */
-	private $callback_baseurl;
-
-	/**
 	 * The test phone number provided by safaricom. For developers
 	 * @var string $test_msisdn
 	 */
@@ -74,25 +78,101 @@ class Mpesa {
 	 * @var string $cred
 	 */
 	private $cred;
+
+	/**
+	 * The API access token
+	 * @var string $access_token
+	 */
 	private $access_token;
 
 	/*Callbacks*/
-	public $bctimeout;
-	public $bcresult;
-	public $bbtimeout;
-	public $bbresult;
-	public $baltimeout;
-	public $balresult;
-	public $statustimeout;
-	public $statusresult;
-	public $reversetimeout;
-	public $reverseresult;
-	public $cbvalidate;
-	public $cbconfirm;
-	public $lnmocallback;
-	public $request_type;
+
 	/**
-	 * Construct method
+	 * The Business to Customer (B2C) timeout url
+	 * @var string $b2c_timeout_url
+	 */
+	private $b2c_timeout_url;
+
+	/**
+	 * The Business to Customer (B2C) result url
+	 * @var string $b2c_result_url
+	 */
+	private $b2c_result_url;
+
+	/**
+	 * The Business to Bususiness (B2B) timeout url
+	 * @var string $b2b_timeout_url
+	 */
+	private $b2b_timeout_url;
+
+	/**
+	 * The Business to Business (B2B) timeout url
+	 * @var string $b2b_timeout_url
+	 */
+	private $b2b_result_url;
+
+	/**
+	 * The balance timeout url
+	 * @var string $balance_timeout_url
+	 */
+	private $balance_timeout_url;
+
+	/**
+	 * The balance result url
+	 * @var string $balance_result_url
+	 */
+	private $balance_result_url;
+
+	/**
+	 * The status timeout url
+	 * @var string $status_timeout_url
+	 */
+	private $status_timeout_url;
+
+	/**
+	 * The status result url
+	 * @var string $status_result_url
+	 */
+	private $status_result_url;
+
+	/**
+	 * The reversal timeout url
+	 * @var string $reversal_timeout_url
+	 */
+	private $resersal_timeout_url;
+
+	/**
+	 * The reversal result url
+	 * @var string $reversal_result_url
+	 */
+	private $resersal_result_url;
+
+	/**
+	 * The Customer to Business (C2B) validate url
+	 * @var string $c2b_validate_url
+	 */
+	private $c2b_validate_url;
+
+	/**
+	 * The Customer to Business (C2B) confirm url
+	 * @var string $c2b_confirm_url
+	 */
+	private $c2b_confirm_url;
+
+	/**
+	 * The Lipa na Mpesa Online (STK/LNMO) callback url
+	 * @var string $lnmo_callback_url
+	 */
+	private $lnmo_callback_url;
+
+	/**
+	 * The Request type (C2B, B2C, B2B)
+	 * @var string $request_type
+	 */
+	private $request_type;
+
+	/**
+	 * Constructor method
 	 *
 	 * Initializes the class with an array of API values.
 	 *
@@ -100,10 +180,7 @@ class Mpesa {
 	 * @return void
 	 * @throws exception if the values array is not valid
 	 */
-
-
-
-	public function __construct(){
+	public function __construct($request_type){
 		// Set the base URL for API calls based on the application environment
 		if (config('mpesa.mpesa_env')=='sandbox') {
        		$this->base_url = 'https://sandbox.safaricom.co.ke/mpesa/';
@@ -111,7 +188,6 @@ class Mpesa {
        		$this->base_url = 'https://api.safaricom.co.ke/mpesa/';
      	}
 
-		
 		$this->consumer_key = config('mpesa.consumer_key');
 		$this->consumer_secret = config('mpesa.consumer_secret');
 		$this->bulk_consumer_key = config('mpesa.bulk_consumer_key');
@@ -123,30 +199,30 @@ class Mpesa {
 		$this->initiator_password = config('mpesa.initiator_password');
 
 		// Mpesa express (STK) callbacks
-		$this->callback_baseurl = 'https://91c77dd6.ngrok.io/api/callback';
-        $this->lnmocallback = config('mpesa.lnmocallback');
+        $this->lnmo_callback_url = config('mpesa.lnmo_callback_url');
 		$this->test_msisdn = config('mpesa.test_msisdn');
 
     	// C2B callback urls
-     	$this->cbvalidate=config('mpesa.c2b_validate_callback');
-     	$this->cbconfirm=config('mpesa.c2b_confirm_callback');
+     	$this->c2b_validate_url = config('mpesa.c2b_validate_callback');
+     	$this->c2b_confirm_url = config('mpesa.c2b_confirm_callback');
 
      	// B2C URLs
-     	$this->bctimeout=config('mpesa.b2c_timeout');
-     	$this->bcresult=config('mpesa.b2c_result');
+     	$this->b2c_timeout_url = config('mpesa.b2c_timeout');
+     	$this->b2c_result_url = config('mpesa.b2c_result');
 
      	// Till balance URLS
-     	$this->balresult=config('mpesa.balance_callback');
-     	$this->baltimeout=config('mpesa.balance_timeout');
+     	$this->balance_result_url = config('mpesa.balance_callback');
+     	$this->balance_timeout_url = config('mpesa.balance_timeout');
 
      	// Reversal URLs
-     	$this->reverseresult = config('mpesa.reversal_result_callback');
-     	$this->reversetimeout = config('mpesa.reversal_timeout_callback');
+     	$this->resersal_result_url = config('mpesa.reversal_result_callback');
+     	$this->resersal_timeout_url = config('mpesa.reversal_timeout_callback');
 
-     	$this->request_type = "C2B";
+     	$this->request_type = $request_type;
      	
      	// Set the access token
-		$this->access_token = $this->getAccessToken("C2B");
+		$this->access_token = $this->getAccessToken($this->request_type);
+
 		Log::info("Access token: ".$this->access_token);
 	}
 
@@ -176,31 +252,25 @@ class Mpesa {
 
 
 	public function getAccessToken($request_type){
-        /*$accessToken = Cache::remember('mpesa_access_token', 50, function() {
-            
-        });
-        $this->access_token = $accessToken;
-        return $accessToken; */
-
         $credentials = base64_encode($this->consumer_key.':'.$this->consumer_secret);
-        if ($this->request_type == "BULK") {
-                $credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
+
+        if ($request_type == "BULK") {
+            $credentials = base64_encode($this->bulk_consumer_key.':'.$this->bulk_consumer_secret);
         }
 
         $ch = curl_init();
         $url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-        if(config('mpesa.mpesa_env')=='sandbox'){
+        if(config('mpesa.mpesa_env') == 'sandbox'){
             $url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
         }
-        curl_setopt($ch, CURLOPT_URL, $url);
 
+        curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
         $response = curl_exec($ch);
         curl_close($ch);
         $response = json_decode($response);
         \Log::info(json_encode($response, true));
-        //$access_token = @$response->access_token;
 
     	if($response == null){
             return FALSE;
@@ -211,6 +281,16 @@ class Mpesa {
         return $access_token;
     }
 
+    /**
+	 * Submit request
+	 *
+	 * This method submits a curl request to Mpesa API.
+	 *
+	 * @param string $url the url to sent the request
+	 * @param array $data the data to be sent
+	 * @param string $type  the request type (C2B, B2B, B2C)
+	 * @return object $response Response from submit_request, FALSE on failure
+	 */
 	private function submit_request($url, $data, $type) { 
 		$access_token = $this->getAccessToken($type);
 		
@@ -225,8 +305,9 @@ class Mpesa {
 
 			$response = curl_exec($curl);
 			curl_close($curl);
+
 			return $response;
-		}else{
+		} else {
 			return FALSE;
 		}
 
@@ -241,7 +322,6 @@ class Mpesa {
 	 * @param int $phone The phone number of the client in the format 2547xxxxxxxx
 	 * @return object Curl Response from submit_request, FALSE on failure
 	 */
-
 	public function b2c($amount, $phone, $command_id, $remarks){
 		$this->setCred();
 		$request_data = array(
@@ -252,13 +332,15 @@ class Mpesa {
 			'PartyA' => $this->paybill,
 			'PartyB' => $phone,
 			'Remarks' => $remarks,
-			'QueueTimeOutURL' => $this->bctimeout,
-			'ResultURL' => $this->bcresult,
+			'QueueTimeOutURL' => $this->b2c_timeout_url,
+			'ResultURL' => $this->b2c_result_url,
 			'Occasion' => '' //Optional
 		);
+
 		$data = json_encode($request_data);
 		$url = $this->base_url.'b2c/v1/paymentrequest';
 		$response = $this->submit_request($url, $data, "BULK");
+
 		return $response;
 	}
 
@@ -269,27 +351,29 @@ class Mpesa {
 	 *
 	 * @param int $amount The amount to send to the business
 	 * @param int $shortcode The shortcode of the business to send to
+	 * @param string reference The reason or reference
 	 * @return object Curl Response from submit_request, FALSE on failure
 	 */
 
-	public function b2b($amount, $shortcode){
+	public function b2b($amount, $shortcode, $reference){
 		$request_data = array(
 			'Initiator' => $this->initiator_username,
 			'SecurityCredential' => $this->cred,
 			'CommandID' => 'BusinessToBusinessTransfer',
 			'SenderIdentifierType' => 'Shortcode',
 			'RecieverIdentifierType' => 'Shortcode',
-			'Amount' => 100,
+			'Amount' => $amount,
 			'PartyA' => $this->paybill,
-			'PartyB' => 600000,
-			'AccountReference' => 'Bennito',
+			'PartyB' => $shortcode,
+			'AccountReference' => $reference,
 			'Remarks' => 'This is a test comment or remark',
-			'QueueTimeOutURL' => $this->bbtimeout,
-			'ResultURL' => $this->bbresult,
+			'QueueTimeOutURL' => $this->b2b_timeout_url,
+			'ResultURL' => $this->b2b_result_url,
 		);
 		$data = json_encode($request_data);
 		$url = $this->base_url.'b2b/v1/paymentrequest';
-		$response = $this->submit_request($url, $data, "BULK");
+		$response = $this->submit_request($url, $data, "B2B");
+
 		return $response;
 	}
 
@@ -307,14 +391,14 @@ class Mpesa {
 		$request_data = array(
 			'ShortCode' => $this->paybill,
 			'ResponseType' => 'Completed',
-			'ConfirmationURL' => $this->cbconfirm,
-			'ValidationURL' => $this->cbvalidate
+			'ConfirmationURL' => $this->c2b_confirm_url,
+			'ValidationURL' => $this->c2b_validate_url
 		);
 		$data = json_encode($request_data);
-		//header('Content-Type: application/json');
 
-		$url = $this->base_url.'c2b/v1/registerurl';
+		$url = $this->base_url.'c2b/v2/registerurl';
 		$response = $this->submit_request($url, $data, "C2B");
+
 		return $response;
 	}
 
@@ -338,8 +422,9 @@ class Mpesa {
 			'BillRefNumber' => $ref
 		);
 		$data = json_encode($data);
-		$url = $this->base_url.'c2b/v1/simulate';
+		$url = $this->base_url.'c2b/v2/simulate';
 		$response = $this->submit_request($url, $data, "C2B");
+
 		return $response;
 	}
 
@@ -358,12 +443,13 @@ class Mpesa {
 			'Remarks' => 'Remarks or short description',
 			'Initiator' => $this->initiator_username,
 			'SecurityCredential' => $this->cred,
-			'QueueTimeOutURL' => $this->baltimeout,
-			'ResultURL' => $this->balresult
+			'QueueTimeOutURL' => $this->balance_timeout_url,
+			'ResultURL' => $this->balance_result_url
 		);
 		$data = json_encode($data);
 		$url = $this->base_url.'accountbalance/v1/query';
 		$response = $this->submit_request($url, $data, "BULK");
+
 		return $response;
 	}
 
@@ -384,8 +470,8 @@ class Mpesa {
 			'Remarks' => 'Testing API',
 			'Initiator' => $this->initiator_username,
 			'SecurityCredential' => $this->cred,
-			'QueueTimeOutURL' => $this->statustimeout,
-			'ResultURL' => $this->statusresult,
+			'QueueTimeOutURL' => $this->status_timeout_url,
+			'ResultURL' => $this->status_result_url,
 			'TransactionID' => $transaction,
 			'Occassion' => 'Test'
 		);
@@ -415,8 +501,8 @@ class Mpesa {
 			'Amount' => $amount,
 			'Initiator' => $this->initiator_username,
 			'SecurityCredential' => $this->cred,
-			'QueueTimeOutURL' => $this->reversetimeout,
-			'ResultURL' => $this->reverseresult,
+			'QueueTimeOutURL' => $this->resersal_timeout_url,
+			'ResultURL' => $this->resersal_result_url,
 			'TransactionID' => $trx_id
 		);
 		$data = json_encode($data);
@@ -431,8 +517,8 @@ class Mpesa {
 	 *
 	 * *******************************************************************/
 
-	public function express($amount, $phone, $ref = "Payment",$desc="Payment"){
-		if(!is_numeric($amount) || $amount < 1 || !is_numeric($phone)){
+	public function express($amount, $phone, $ref = "Payment", $desc="Payment"){
+		if(!is_numeric($amount) || $amount < 10 || !is_numeric($phone)){
 			throw new Exception("Invalid amount and/or phone number. Amount should be 10 or more, phone number should be in the format 254xxxxxxxx");
 			return FALSE;
 		}
@@ -447,12 +533,12 @@ class Mpesa {
 			'PartyA' => $phone,
 			'PartyB' => $this->lipa_na_mpesa,
 			'PhoneNumber' => $phone,
-			'CallBackURL' => $this->lnmocallback,
+			'CallBackURL' => $this->lnmo_callback_url,
 			'AccountReference' => $ref,
 			'TransactionDesc' => $desc,
 		);
 		$data = json_encode($data);
-		$url = $this->base_url.'stkpush/v1/processrequest';
+		$url = $this->base_url.'stkpush/v2/processrequest';
 		$response = $this->submit_request($url, $data, "C2B");
 		$result = json_decode($response);
 		return $result;
@@ -473,8 +559,9 @@ class Mpesa {
 			'CheckoutRequestID' => $checkoutRequestID
 		);
 		$data = json_encode($data);
-		$url = $this->base_url.'stkpushquery/v1/query';
+		$url = $this->base_url.'stkpushquery/v2/query';
 		$response = $this->submit_request($url, $data, "C2B");
+		
 		return $response;
 	}
 
