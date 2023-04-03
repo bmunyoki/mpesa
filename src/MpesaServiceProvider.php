@@ -27,8 +27,8 @@ class MpesaServiceProvider extends ServiceProvider
      * @return void
      */
     public function register(){
-        $this->app->bind('bmunyoki-mpesa',function(){
-             return new Mpesa();
+        $this->app->bind('bmunyoki-mpesa', function(){
+            return new Mpesa();
         });
-    }
+    } 
 }

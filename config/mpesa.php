@@ -2,115 +2,71 @@
 
 return [
 
-    /*-----------------------------------------
-    |Mpesa environment: sandbox or production
-    |------------------------------------------
-    */
-     'mpesa_env' => 'sandbox',
-     
-    /*-----------------------------------------
-    |The App consumer key for C2B and B2c (Bulk)
-    |------------------------------------------
-    */
-    'consumer_key'   => '',
-    'bulk_consumer_key'   => '',
+     //Specify the environment mpesa is running, sandbox or production
+     'mpesa_env' => env('MPESA_ENV', 'sandbox'),
 
     /*-----------------------------------------
-    |The App consumer Secret for C2B and B2c (Bulk)
+    |The App consumer key
     |------------------------------------------
     */
-    'consumer_secret' => '',
-    'bulk_consumer_secret' => '',
+    'consumer_key'   => env('MPESA_CONSUMER_KEY', ''),
+    'paybill_consumer_key'   => env('MPESA_PAYBILL_CONSUMER_KEY', ''),
+    'till_consumer_key'   => env('MPESA_TILL_CONSUMER_KEY', ''),
 
     /*-----------------------------------------
-    |The paybill number / till number
+    |The App consumer Secret
     |------------------------------------------
     */
-    'paybill'         => ,
+    'consumer_secret' => env('MPESA_CONSUMER_SECRET', ''),
+    'paybill_consumer_secret' => env('MPESA_PAYBILL_CONSUMER_SECRET', ''),
+    'till_consumer_secret' => env('MPESA_TILL_CONSUMER_SECRET', ''),
 
     /*-----------------------------------------
-    |Lipa Na Mpesa Online Shortcode
+    |The paybill number or till
     |------------------------------------------
     */
-    'lipa_na_mpesa'  => '',
+    'paybill' => env('MPESA_PAYBILL', ''),
+    'till' => env('MPESA_TILL', ''),
+
+    /*-----------------------------------------
+    |Lipa Na Mpesa (till) store number
+    |------------------------------------------
+    */
+    
+    'store_number'  => env('MPESA_STORE_NUMBER', ''),
 
     /*-----------------------------------------
     |Lipa Na Mpesa Online Passkey
     |------------------------------------------
     */
-    'lipa_na_mpesa_passkey' => '',
+    'passkey' => env('MPESA_PASSKEY', ''),
 
-    /*-----------------------------------------
-    |Initiator Username for B2C
-    |------------------------------------------
-    */
-    'initiator_username' => '',
-
-    /*-----------------------------------------
-    |Initiator Password
-    |------------------------------------------
-    */
-    'initiator_password' => '',
 
     /*-----------------------------------------
     |Test phone Number
     |------------------------------------------
     */
-    'test_msisdn ' => '',
+    'test_msisdn ' => '254728354249',
 
     /*-----------------------------------------
     |Lipa na Mpesa Online callback url
     |------------------------------------------
     */
-    'lnmo_callback_url' => '',
+    'lnmo_callback_url' => env('MPESA_LNMO_CALLBACK', ''),
 
      /*-----------------------------------------
     |C2B  Validation url
     |------------------------------------------
     */
-    'c2b_validate_callback' => '',
+    'c2b_validate_callback' => env('MPESA_VALIDATE_CALLBACK', ''),
 
     /*-----------------------------------------
     |C2B confirmation url
     |------------------------------------------
     */
-    'c2b_confirm_callback' => '',
+    'c2b_confirm_callback' => env('MPESA_CONFIRM_CALLBACK', ''),
 
-    /*-----------------------------------------
-    |B2C timeout url
-    |------------------------------------------
-    */
-    'b2c_timeout' => '',
-
-    /*-----------------------------------------
-    |B2C results url
-    |------------------------------------------
-    */
-    'b2c_result' => '',
-
-    /*-----------------------------------------
-    |B2C Status Timeout url
-    |------------------------------------------
-    */
-    'b2c_status_timeout' => '',
-
-    /*-----------------------------------------
-    |B2C status callback url
-    |------------------------------------------
-    */
-    'b2c_status_callback' => '',
-
-    /*-----------------------------------------
-    |Reversal result callback url
-    |------------------------------------------
-    */
-    'reversal_result_callback' => '',
-
-    /*-----------------------------------------
-    |Reversal timeout callback url
-    |------------------------------------------
-    */
-    'reversal_timeout_callback' => ''
-
+    
+    'pull_callback_url' => env('MPESA_PULL_CALLBACK', ''),
 
 ];
