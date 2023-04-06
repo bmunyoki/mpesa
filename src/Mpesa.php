@@ -79,7 +79,7 @@ class Mpesa {
         $response = curl_exec($ch);
         curl_close($ch);
         $response = json_decode($response);
-        \Log::info(json_encode($response, true));
+        //\Log::info(json_encode($response, true));
 
     	if($response == null) {
             return false;
