@@ -1,19 +1,41 @@
 {
     "name": "bmunyoki/mpesa",
-    "description": "Laravel Mpesa package providing Mpesa STK, B2C, C2B and Reversal functionality",
-    "type": "laravel",
+    "description": "Secure Laravel integration for Safaricom M-Pesa Daraja APIs",
+    "type": "library",
     "license": "MIT",
+    "keywords": [
+        "laravel",
+        "mpesa",
+        "daraja",
+        "safaricom",
+        "payments"
+    ],
     "authors": [
         {
             "name": "Benjamin Munyoki",
             "email": "munyokibenjamin@gmail.com"
         }
     ],
-    "minimum-stability": "dev",
-    "require": {},
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "illuminate/cache": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/http": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/support": "^11.0 || ^12.0 || ^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
+        "phpunit/phpunit": "^10.5 || ^11.5 || ^12.0"
+    },
     "autoload": {
         "psr-4": {
-            "Bmunyoki\\Mpesa\\":"src/"
+            "Bmunyoki\\Mpesa\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bmunyoki\\Mpesa\\Tests\\": "tests/"
         }
     },
     "extra": {
@@ -21,10 +43,14 @@
             "providers": [
                 "Bmunyoki\\Mpesa\\MpesaServiceProvider"
             ],
-            "aliases":{
-                "Mpesa":"Bmunyoki\\Mpesa\\Facades\\Mpesa"
+            "aliases": {
+                "Mpesa": "Bmunyoki\\Mpesa\\Facades\\Mpesa"
             }
-        
         }
-    }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

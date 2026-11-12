@@ -2,33 +2,25 @@
 
 namespace Bmunyoki\Mpesa;
 
+use Bmunyoki\Mpesa\Http\DarajaClient;
 use Illuminate\Support\ServiceProvider;
 
-class MpesaServiceProvider extends ServiceProvider
-{
-    /**
-     * Bootstrap any application services.
-     *
-     * @return void
-     */
-    public function boot(){
-        // require __DIR__.'/routes/web.php';
-        $this->loadRoutesFrom(__DIR__.'/routes/web.php');
+class MpesaServiceProvider extends ServiceProvider {
+    public function register(): void {
+        $this->mergeConfigFrom(__DIR__.'/../config/mpesa.php', 'mpesa');
 
-        //publish the config files
-        $this->publishes([
-            __DIR__.'/../config/mpesa.php' => config_path('mpesa.php'),
-        ],'mpesa-config');
+        $this->app->singleton(DarajaClient::class, fn () => new DarajaClient());
+
+        $this->app->singleton('bmunyoki-mpesa', function ($app) {
+            return new Mpesa($app->make(DarajaClient::class));
+        });
+
+        $this->app->alias('bmunyoki-mpesa', Mpesa::class);
     }
 
-    /**
-     * Register any application services.
-     *
-     * @return void
-     */
-    public function register(){
-        $this->app->bind('bmunyoki-mpesa', function(){
-            return new Mpesa();
-        });
-    } 
+    public function boot(): void {
+        $this->publishes([
+            __DIR__.'/../config/mpesa.php' => config_path('mpesa.php'),
+        ], 'mpesa-config');
+    }
 }
