@@ -1,382 +1,506 @@
 <?php
 
 namespace Bmunyoki\Mpesa;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Cache;
 
+use Bmunyoki\Mpesa\Exceptions\MpesaException;
+use Bmunyoki\Mpesa\Http\DarajaClient;
+use DateTimeImmutable;
+use DateTimeZone;
+use InvalidArgumentException;
 
 class Mpesa {
-	public $environment;
-	private $baseUrl;
-	public $consumerKey;
-	public $consumerSecret;
-	private $cred;
-	private $accessToken;
-
-	/**
-	 * Constructor method
-	 *
-	 * Initializes the class with an array of API values.
-	 *
-	 * @param array $config
-	 * @return void
-	 * @throws exception if the values array is not valid
-	 */
-	public function __construct() {
-		$environment = config('mpesa.mpesa_env');
-		$consumerKey = config('mpesa.consumer_key');
-		$consumerSecret = config('mpesa.consumer_secret');
-
-		$this->environment = $environment;
-
-		// Set the base URL for API calls based on the application environment
-		if ($environment == 'sandbox') {
-       		$this->baseUrl = 'https://sandbox.safaricom.co.ke/mpesa/';
-     	} else {
-       		$this->baseUrl = 'https://api.safaricom.co.ke/mpesa/';
-     	}
-
-		$this->consumerKey = $consumerKey;
-		$this->consumerSecret = $consumerSecret;
-     	
-     	// Set the access token
-		$this->accessToken = $this->getAccessToken();
-	}
-
-	/**
-	 * Submit Request - Handles submission of all API endpoints queries
-	 * @return object|boolean Curl response or FALSE on failure
-	 * @throws exception if the Access Token is not valid
-	 */
-	public function setCred($initiatorPassword) {
-		// Set public key certificate based on environment
-		if($this->environment == 'sandbox') {
-			$pubkey = File::get(__DIR__.'/cert/sandbox.cer');
-		} else {
-			$pubkey = File::get(__DIR__.'/cert/production.cer');
-		}
-		
-		openssl_public_encrypt($initiatorPassword, $output, $pubkey, OPENSSL_PKCS1_PADDING);
-        $this->cred = base64_encode($output);
-
-        return $this->cred;
-	}
-
-
-	public function getAccessToken() {
-        $credentials = base64_encode($this->consumerKey.':'.$this->consumerSecret);
-
-        $ch = curl_init();
-        $url = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-        if($this->environment == 'sandbox') {
-            $url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
-        }
-
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Basic '.$credentials, 'Content-Type: application/json'));
-        $response = curl_exec($ch);
-        curl_close($ch);
-        $response = json_decode($response);
-        //\Log::info(json_encode($response, true));
-
-    	if($response == null) {
-            return false;
-        }
-
-        $accessToken = @$response->access_token;
-        $this->accessToken = $accessToken;
-
-        return $accessToken;
+    public function __construct(
+        private DarajaClient $client,
+        private string $profile = 'default'
+    ) {
     }
 
-    /**
-	 * Submit request - submits a curl request to Mpesa API
-	 * @return object $response, false on failure
-	 */
-	private function submitRequest($url, $data) { 
-		$accessToken = $this->getAccessToken();
-		if($accessToken == '' || $accessToken == FALSE) {
-			return false;
-		}
+    public function using(string $profile): self {
+        if (! preg_match('/^[a-z0-9_-]+$/i', $profile)) {
+            throw new InvalidArgumentException('Invalid M-Pesa credential profile.');
+        }
 
-		$curl = curl_init();
-		curl_setopt($curl, CURLOPT_URL, $url);
-		curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json','Authorization: Bearer '.$accessToken));
+        $instance = clone $this;
+        $instance->profile = $profile;
 
-		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($curl, CURLOPT_POST, true);
-		curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+        return $instance;
+    }
 
-		$response = curl_exec($curl);
-		curl_close($curl);
+    public function getAccessToken(): string {
+        return $this->client->getAccessToken($this->profile);
+    }
 
-		return $response;
-	}
+    public function setCred(string $initiatorPassword): string {
+        $this->required($initiatorPassword, 'Initiator password');
 
-	/**
-	 * Business to Client (B2C) - used to send money to the customer Mpesa account. 
-	 * @return object Curl Response from submitRequest method, FALSE on failure
-	 */
-	public function b2c($paybillOrTill, $initiatorUsername, $initiatorPassword, $amount, $phone, $commandId, $remarks, $b2cTimeoutUrl, $b2cResultUrl) {
-		$cred = $this->setCred($initiatorPassword);
+        $certificate = $this->client->environment() === 'sandbox'
+            ? __DIR__.'/cert/sandbox.cer'
+            : __DIR__.'/cert/production.cer';
 
-		$requestData = array(
-			'InitiatorName' => $initiatorUsername,
-			'SecurityCredential' => $cred,
-			'CommandID' => $commandId,
-			'Amount' => $amount,
-			'PartyA' => $paybillOrTill,
-			'PartyB' => $phone,
-			'Remarks' => $remarks,
-			'QueueTimeOutURL' => $b2cTimeoutUrl,
-			'ResultURL' => $b2cResultUrl,
-			'Occasion' => '' //Optional
-		);
+        if (! is_readable($certificate)) {
+            throw new MpesaException('M-Pesa public certificate is not readable.');
+        }
 
-		$data = json_encode($requestData);
-		$url = $this->baseUrl.'b2c/v1/paymentrequest';
+        $publicKey = openssl_pkey_get_public(
+            (string) file_get_contents($certificate)
+        );
 
-		return $this->submitRequest($url, $data);
-	}
+        if (
+            $publicKey === false ||
+            ! openssl_public_encrypt(
+                $initiatorPassword,
+                $encrypted,
+                $publicKey,
+                OPENSSL_PKCS1_PADDING
+            )
+        ) {
+            throw new MpesaException('Unable to encrypt the M-Pesa initiator credential.');
+        }
 
-	/**
-	 * Business to Business (B2B) - used to send money to other business Mpesa till or paybill.
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function b2b($initiatorUsername, $initiatorPassword, $amount, $paybillOrTill, $shortcode, $reference, $b2bTimeoutUrl, $b2bResultUrl) {
-		$cred = $this->setCred($initiatorPassword);
+        return base64_encode($encrypted);
+    }
 
-		$requestData = array(
-			'Initiator' => $initiatorUsername,
-			'SecurityCredential' => $cred,
-			'CommandID' => 'BusinessToBusinessTransfer',
-			'SenderIdentifierType' => 'Shortcode',
-			'RecieverIdentifierType' => 'Shortcode',
-			'Amount' => $amount,
-			'PartyA' => $paybillOrTill,
-			'PartyB' => $shortcode,
-			'AccountReference' => $reference,
-			'Remarks' => 'This is a test comment or remark',
-			'QueueTimeOutURL' => $b2bTimeoutUrl,
-			'ResultURL' => $b2bResultUrl,
-		);
+    public function stkPush(
+        string $phone,
+        int $amount,
+        string $reference = 'Payment',
+        ?string $callbackUrl = null,
+        string $description = 'Payment',
+        string $transactionType = 'CustomerPayBillOnline',
+        ?string $shortcode = null,
+        ?string $partyB = null,
+        ?string $passkey = null
+    ): array {
+        $this->positiveAmount($amount);
+        $this->phone($phone);
 
-		$data = json_encode($requestData);
-		$url = $this->baseUrl.'b2b/v1/paymentrequest';
+        if (! in_array($transactionType, [
+            'CustomerPayBillOnline',
+            'CustomerBuyGoodsOnline'
+        ], true)) {
+            throw new InvalidArgumentException('Invalid STK transaction type.');
+        }
 
-		return $this->submitRequest($url, $data);
-	}
+        if (
+            $reference === '' ||
+            strlen($reference) > 12 ||
+            $description === '' ||
+            strlen($description) > 13
+        ) {
+            throw new InvalidArgumentException(
+                'STK reference must be 1-12 characters and description 1-13 characters.'
+            );
+        }
 
-	/**
-	 * C2B register urls - used to register URLs for callbacks when money is sent from the MPesa toolkit menu
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function c2bRegisterUrls($paybillOrTill, $c2bConfirmationUrl, $c2bValidationUrl) {
-		$requestData = array(
-			'ShortCode' => $paybillOrTill,
-			'ResponseType' => 'Completed',
-			'ConfirmationURL' => $c2bConfirmationUrl,
-			'ValidationURL' => $c2bValidationUrl
-		);
+        $buyGoods = $transactionType === 'CustomerBuyGoodsOnline';
 
-		$data = json_encode($requestData);
-		$url = $this->baseUrl.'c2b/v2/registerurl';
+        $shortcode ??= $this->option(
+            'shortcode',
+            $buyGoods ? 'store_number' : 'paybill'
+        );
 
-		$response = $this->submitRequest($url, $data);
+        $partyB ??= $this->option(
+            'party_b',
+            $buyGoods ? 'till' : 'paybill'
+        );
 
-		return $response;
-	}
+        $passkey ??= $this->option('passkey', 'passkey');
+        $callbackUrl ??= $this->option('callback_url', 'lnmo_callback_url');
 
-	/**
-	 * Pull API to Business - used to register URLs for Pull API callbacks
-	 *
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function pullRegisterUrl($nominatedNumber, $storeNumber, $pullCallbackUrl) {
-		$requestData = array(
-			'ShortCode' => $storeNumber, //Replace this with store number 7085771
-			'RequestType' => 'Pull',
-			'NominatedNumber' => $nominatedNumber,
-			'CallBackURL' => $pullCallbackUrl
-		);
-		$data = json_encode($requestData);
+        $this->shortcode($shortcode);
+        $this->shortcode($partyB);
+        $this->required($passkey, 'STK passkey');
+        $this->callbackUrl($callbackUrl);
 
-		$url = 'https://api.safaricom.co.ke/pulltransactions/v1/register';
+        $timestamp = (new DateTimeImmutable(
+            'now',
+            new DateTimeZone('Africa/Nairobi')
+        ))->format('YmdHis');
 
-		return $this->submitRequest($url, $data);
-	}
+        return $this->request('mpesa/stkpush/v1/processrequest', [
+            'BusinessShortCode' => $shortcode,
+            'Password' => base64_encode($shortcode.$passkey.$timestamp),
+            'Timestamp' => $timestamp,
+            'TransactionType' => $transactionType,
+            'Amount' => $amount,
+            'PartyA' => $phone,
+            'PartyB' => $partyB,
+            'PhoneNumber' => $phone,
+            'CallBackURL' => $callbackUrl,
+            'AccountReference' => $reference,
+            'TransactionDesc' => $description,
+        ]);
+    }
 
-	/**
-	 * PULL API - used to pull transactions for a given short code within given timestamps
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function pullAPI($storeNumber, $start, $end) {
-		$data = array(
-			'ShortCode' => $storeNumber,
-			'StartDate' => $start,
-			'EndDate' => $end,
-			'OffSetValue' => "0"
-		);
+    // Custom STK method signature.
+    public function stkRequest(
+        string $paybillOrTill,
+        string $storeNumber,
+        string $passKey,
+        int $amount,
+        string $phone,
+        string $callbackUrl,
+        string $transactionType,
+        string $ref = 'Payment',
+        string $desc = 'Payment'
+    ): array {
+        return $this->stkPush(
+            phone: $phone,
+            amount: $amount,
+            reference: $ref,
+            callbackUrl: $callbackUrl,
+            description: $desc,
+            transactionType: $transactionType,
+            shortcode: $storeNumber,
+            partyB: $paybillOrTill,
+            passkey: $passKey
+        );
+    }
 
-		$data = json_encode($data);
-		$url = 'https://api.safaricom.co.ke/pulltransactions/v1/query';
+    public function stkQuery(
+        string $checkoutRequestId,
+        ?string $shortcode = null,
+        ?string $passkey = null
+    ): array {
+        $this->required($checkoutRequestId, 'CheckoutRequestID');
 
-		return $this->submitRequest($url, $data);
-	}
+        $shortcode ??= $this->option('shortcode', 'paybill');
+        $passkey ??= $this->option('passkey', 'passkey');
 
+        $this->shortcode($shortcode);
+        $this->required($passkey, 'STK passkey');
 
-	/**
-	 * C2B Simulation - used to simulate a C2B Transaction to test your ConfirmURL and ValidationURL in the Client to Business method
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function simulateC2B($paybillOrTill, $amount, $msisdn, $ref) {
-		$data = array(
-			'ShortCode' => $paybillOrTill,
-			'CommandID' => 'CustomerPayBillOnline',
-			'Amount' => $amount,
-			'Msisdn' => $msisdn,
-			'BillRefNumber' => $ref
-		);
+        $timestamp = (new DateTimeImmutable(
+            'now',
+            new DateTimeZone('Africa/Nairobi')
+        ))->format('YmdHis');
 
-		$data = json_encode($data);
-		$url = $this->baseUrl.'c2b/v2/simulate';
+        $version = $this->endpointVersion('stk_query', ['v1', 'v2']);
 
-		return $this->submitRequest($url, $data);
-	}
+        return $this->request("mpesa/stkpushquery/{$version}/query", [
+            'BusinessShortCode' => $shortcode,
+            'Password' => base64_encode($shortcode.$passkey.$timestamp),
+            'Timestamp' => $timestamp,
+            'CheckoutRequestID' => $checkoutRequestId,
+        ]);
+    }
 
-	/**
-	 * Check Balance
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function checkBalance($paybillOrTill, $initiatorUsername, $initiatorPassword, $balanceTimeoutUrl, $balanceResultUrl) {
-		$cred = $this->setCred($initiatorPassword);
+    public function c2bRegisterUrls(
+        string $paybillOrTill,
+        string $confirmationUrl,
+        string $validationUrl
+    ): array {
+        $this->shortcode($paybillOrTill);
+        $this->callbackUrl($confirmationUrl);
+        $this->callbackUrl($validationUrl);
 
-		$data = array(
-			'CommandID' => 'AccountBalance',
-			'PartyA' => $paybillOrTill,
-			'IdentifierType' => '4',
-			'Remarks' => 'Remarks or short description',
-			'Initiator' => $initiatorUsername,
-			'SecurityCredential' => $cred,
-			'QueueTimeOutURL' => $balanceTimeoutUrl,
-			'ResultURL' => $balanceResultUrl
-		);
+        $version = $this->endpointVersion('c2b', ['v1', 'v2']);
 
-		$data = json_encode($data);
-		$url = $this->baseUrl.'accountbalance/v1/query';
+        return $this->request("mpesa/c2b/{$version}/registerurl", [
+            'ShortCode' => $paybillOrTill,
+            'ResponseType' => 'Completed',
+            'ConfirmationURL' => $confirmationUrl,
+            'ValidationURL' => $validationUrl,
+        ]);
+    }
 
-		return $this->submitRequest($url, $data);
-	}
+    public function simulateC2B(
+        string $paybillOrTill,
+        int $amount,
+        string $msisdn,
+        string $ref
+    ): array {
+        if ($this->client->environment() !== 'sandbox') {
+            throw new MpesaException(
+                'C2B simulation is available only in the sandbox.'
+            );
+        }
 
-	/**
-	 * Transaction status request - used to check a transaction status
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function statusRequest($paybillOrTill, $initiatorUsername, $initiatorPassword, $statusTimeoutUrl, $statusResultUrl, $transaction = 'LH7819VXPE') {
-		$cred = $this->setCred($initiatorPassword);
+        $this->shortcode($paybillOrTill);
+        $this->positiveAmount($amount);
+        $this->phone($msisdn);
+        $this->required($ref, 'C2B reference');
 
-		$data = array(
-			'CommandID' => 'TransactionStatusQuery',
-			'PartyA' => $paybillOrTill,
-			'IdentifierType' => 4,
-			'Remarks' => 'Testing API',
-			'Initiator' => $initiatorUsername,
-			'SecurityCredential' => $cred,
-			'QueueTimeOutURL' => $statusTimeoutUrl,
-			'ResultURL' => $statusResultUrl,
-			'TransactionID' => $transaction,
-			'Occassion' => 'Test'
-		);
+        $version = $this->endpointVersion('c2b', ['v1', 'v2']);
 
-		$data = json_encode($data);
-		$url = $this->baseUrl.'transactionstatus/v1/query';
+        return $this->request("mpesa/c2b/{$version}/simulate", [
+            'ShortCode' => $paybillOrTill,
+            'CommandID' => 'CustomerPayBillOnline',
+            'Amount' => $amount,
+            'Msisdn' => $msisdn,
+            'BillRefNumber' => $ref,
+        ]);
+    }
 
-		return $this->submitRequest($url, $data);
-	}
+    public function b2c(
+        string $paybillOrTill,
+        string $initiatorUsername,
+        string $initiatorPassword,
+        int $amount,
+        string $phone,
+        string $commandId,
+        string $remarks,
+        string $b2cTimeoutUrl,
+        string $b2cResultUrl
+    ): array {
+        $this->shortcode($paybillOrTill);
+        $this->positiveAmount($amount);
+        $this->phone($phone);
+        $this->required($initiatorUsername, 'Initiator username');
+        $this->required($commandId, 'B2C CommandID');
+        $this->required($remarks, 'B2C remarks');
+        $this->callbackUrl($b2cTimeoutUrl);
+        $this->callbackUrl($b2cResultUrl);
 
-	/**
-	 * Transaction Reversal - used to reverse a transaction
-	 * 
-	 * @return object Curl Response from submitRequest, FALSE on failure
-	 */
-	public function reverseTransaction($initiatorUsername, $initiatorPassword, $resersalTimeoutUrl, $resersalResultUrl, $receiver, $transactionId, $amount, $testMsisdn) {
-		$cred = $this->setCred($initiatorPassword);
+        $version = $this->endpointVersion('b2c', ['v1', 'v3']);
 
-		$data = array(
-			'CommandID' => 'TransactionReversal',
-			'ReceiverParty' => $testMsisdn,
-			'RecieverIdentifierType' => 1, //1=MSISDN, 2=Till_Number, 4=Shortcode
-			'Remarks' => 'Testing',
-			'Amount' => $amount,
-			'Initiator' => $initiatorUsername,
-			'SecurityCredential' => $cred,
-			'QueueTimeOutURL' => $resersalTimeoutUrl,
-			'ResultURL' => $resersalResultUrl,
-			'TransactionID' => $transactionId
-		);
-		
-		$data = json_encode($data);
-		$url = $this->baseUrl.'reversal/v1/request';
+        return $this->request("mpesa/b2c/{$version}/paymentrequest", [
+            'InitiatorName' => $initiatorUsername,
+            'SecurityCredential' => $this->setCred($initiatorPassword),
+            'CommandID' => $commandId,
+            'Amount' => $amount,
+            'PartyA' => $paybillOrTill,
+            'PartyB' => $phone,
+            'Remarks' => $remarks,
+            'QueueTimeOutURL' => $b2cTimeoutUrl,
+            'ResultURL' => $b2cResultUrl,
+            'Occasion' => '',
+        ]);
+    }
 
-		return $this->submitRequest($url, $data);
-	}
+    public function b2b(
+        string $initiatorUsername,
+        string $initiatorPassword,
+        int $amount,
+        string $paybillOrTill,
+        string $shortcode,
+        string $reference,
+        string $timeoutUrl,
+        string $resultUrl
+    ): array {
+        $this->shortcode($paybillOrTill);
+        $this->shortcode($shortcode);
+        $this->positiveAmount($amount);
+        $this->required($initiatorUsername, 'Initiator username');
+        $this->required($reference, 'B2B reference');
+        $this->callbackUrl($timeoutUrl);
+        $this->callbackUrl($resultUrl);
 
-	/*********************************************************************
-	 *
-	 * 	LNMO APIs - STK
-	 *
-	 * *******************************************************************/
-	public function stkRequest($paybillOrTill, $storeNumber, $passKey, $amount, $phone, $callbackUrl, $transactionType, $ref = "Payment", $desc = "Payment") {
-		if(!is_numeric($amount) || $amount < 1 || !is_numeric($phone)) {
-			throw new \Exception("Invalid amount and/or phone number. Amount should be 10 or more, phone number should be in the format 254xxxxxxxx");
-			return false;
-		}
+        return $this->request('mpesa/b2b/v1/paymentrequest', [
+            'Initiator' => $initiatorUsername,
+            'SecurityCredential' => $this->setCred($initiatorPassword),
+            'CommandID' => 'BusinessToBusinessTransfer',
+            'SenderIdentifierType' => '4',
+            'RecieverIdentifierType' => '4',
+            'Amount' => $amount,
+            'PartyA' => $paybillOrTill,
+            'PartyB' => $shortcode,
+            'AccountReference' => $reference,
+            'Remarks' => 'B2B payment',
+            'QueueTimeOutURL' => $timeoutUrl,
+            'ResultURL' => $resultUrl,
+        ]);
+    }
 
-		$timestamp = date('YmdHis');
-		$passwd = base64_encode($storeNumber.$passKey.$timestamp);
-		
-		$data = array(
-			'BusinessShortCode' => $storeNumber,
-			'Password' => $passwd,
-			'Timestamp' => $timestamp,
-			'TransactionType' => $transactionType,
-			'Amount' => $amount,
-			'PartyA' => $phone,
-			'PartyB' => $paybillOrTill,
-			'PhoneNumber' => $phone,
-			'CallBackURL' => $callbackUrl,
-			'AccountReference' => $ref,
-			'TransactionDesc' => $desc,
-		);
+    public function checkBalance(
+        string $paybillOrTill,
+        string $initiatorUsername,
+        string $initiatorPassword,
+        string $timeoutUrl,
+        string $resultUrl
+    ): array {
+        $this->shortcode($paybillOrTill);
+        $this->required($initiatorUsername, 'Initiator username');
+        $this->callbackUrl($timeoutUrl);
+        $this->callbackUrl($resultUrl);
 
-		$data = json_encode($data);
-		$url = $this->baseUrl.'stkpush/v1/processrequest';
-		$response = $this->submitRequest($url, $data);
+        return $this->request('mpesa/accountbalance/v1/query', [
+            'CommandID' => 'AccountBalance',
+            'PartyA' => $paybillOrTill,
+            'IdentifierType' => '4',
+            'Remarks' => 'Account balance query',
+            'Initiator' => $initiatorUsername,
+            'SecurityCredential' => $this->setCred($initiatorPassword),
+            'QueueTimeOutURL' => $timeoutUrl,
+            'ResultURL' => $resultUrl,
+        ]);
+    }
 
-		return json_decode($response);
-	}
+    public function statusRequest(
+        string $paybillOrTill,
+        string $initiatorUsername,
+        string $initiatorPassword,
+        string $timeoutUrl,
+        string $resultUrl,
+        string $transactionId
+    ): array {
+        $this->shortcode($paybillOrTill);
+        $this->required($initiatorUsername, 'Initiator username');
+        $this->required($transactionId, 'TransactionID');
+        $this->callbackUrl($timeoutUrl);
+        $this->callbackUrl($resultUrl);
 
-	private function stkStatusQuery($paybillOrTill, $passKey, $checkoutRequestID = null) {
-		$timestamp = date('YmdHis');
-		$passwd = base64_encode($paybillOrTill.$passKey.$timestamp);
+        return $this->request('mpesa/transactionstatus/v1/query', [
+            'CommandID' => 'TransactionStatusQuery',
+            'PartyA' => $paybillOrTill,
+            'IdentifierType' => 4,
+            'Remarks' => 'Transaction status query',
+            'Initiator' => $initiatorUsername,
+            'SecurityCredential' => $this->setCred($initiatorPassword),
+            'QueueTimeOutURL' => $timeoutUrl,
+            'ResultURL' => $resultUrl,
+            'TransactionID' => $transactionId,
+            'Occasion' => 'Status query',
+        ]);
+    }
 
-		if($checkoutRequestID == null || $checkoutRequestID == '') {
-			return false;
-		}
+    public function reverseTransaction(
+        string $initiatorUsername,
+        string $initiatorPassword,
+        string $timeoutUrl,
+        string $resultUrl,
+        string $receiver,
+        string $transactionId,
+        int $amount,
+        int $receiverIdentifierType = 4
+    ): array {
+        $this->required($initiatorUsername, 'Initiator username');
+        $this->required($receiver, 'ReceiverParty');
+        $this->required($transactionId, 'TransactionID');
+        $this->positiveAmount($amount);
+        $this->callbackUrl($timeoutUrl);
+        $this->callbackUrl($resultUrl);
 
-		$data = array(
-			'BusinessShortCode' => $paybillOrTill,
-			'Password' => $passwd,
-			'Timestamp' => $timestamp,
-			'CheckoutRequestID' => $checkoutRequestID
-		);
+        if (! in_array($receiverIdentifierType, [1, 2, 4], true)) {
+            throw new InvalidArgumentException(
+                'Receiver identifier type must be 1, 2 or 4.'
+            );
+        }
 
-		$data = json_encode($data);
-		$url = $this->baseUrl.'stkpushquery/v2/query';
+        return $this->request('mpesa/reversal/v1/request', [
+            'CommandID' => 'TransactionReversal',
+            'ReceiverParty' => $receiver,
+            'RecieverIdentifierType' => $receiverIdentifierType,
+            'Remarks' => 'Transaction reversal',
+            'Amount' => $amount,
+            'Initiator' => $initiatorUsername,
+            'SecurityCredential' => $this->setCred($initiatorPassword),
+            'QueueTimeOutURL' => $timeoutUrl,
+            'ResultURL' => $resultUrl,
+            'TransactionID' => $transactionId,
+        ]);
+    }
 
-		return $this->submitRequest($url, $data);
-	}
+    public function pullRegisterUrl(
+        string $nominatedNumber,
+        string $storeNumber,
+        string $callbackUrl
+    ): array {
+        $this->phone($nominatedNumber);
+        $this->shortcode($storeNumber);
+        $this->callbackUrl($callbackUrl);
 
+        return $this->request('pulltransactions/v1/register', [
+            'ShortCode' => $storeNumber,
+            'RequestType' => 'Pull',
+            'NominatedNumber' => $nominatedNumber,
+            'CallBackURL' => $callbackUrl,
+        ]);
+    }
+
+    public function pullAPI(
+        string $storeNumber,
+        string $start,
+        string $end,
+        int $offset = 0
+    ): array {
+        $this->shortcode($storeNumber);
+        $this->required($start, 'StartDate');
+        $this->required($end, 'EndDate');
+
+        if ($offset < 0) {
+            throw new InvalidArgumentException('Offset must not be negative.');
+        }
+
+        return $this->request('pulltransactions/v1/query', [
+            'ShortCode' => $storeNumber,
+            'StartDate' => $start,
+            'EndDate' => $end,
+            'OffSetValue' => (string) $offset,
+        ]);
+    }
+
+    private function request(string $path, array $payload): array {
+        return $this->client->post($path, $payload, $this->profile);
+    }
+
+    private function option(string $accountKey, string $rootKey): string {
+        $value = $this->profile === 'default'
+            ? null
+            : config("mpesa.accounts.{$this->profile}.{$accountKey}");
+
+        return (string) (
+            ($value !== null && $value !== '')
+                ? $value
+                : config("mpesa.{$rootKey}", '')
+        );
+    }
+
+    private function endpointVersion(string $name, array $allowed): string {
+        $value = (string) config(
+            "mpesa.endpoint_versions.{$name}",
+            $allowed[0]
+        );
+
+        if (! in_array($value, $allowed, true)) {
+            throw new InvalidArgumentException(
+                "Invalid Daraja endpoint version: {$name}."
+            );
+        }
+
+        return $value;
+    }
+
+    private function required(string $value, string $label): void {
+        if (trim($value) === '') {
+            throw new InvalidArgumentException("{$label} is required.");
+        }
+    }
+
+    private function positiveAmount(int $amount): void {
+        if ($amount < 1) {
+            throw new InvalidArgumentException(
+                'Amount must be a positive whole number in KES.'
+            );
+        }
+    }
+
+    private function phone(string $number): void {
+        if (! preg_match('/^254[71][0-9]{8}$/', $number)) {
+            throw new InvalidArgumentException(
+                'Phone must be in the format 2547XXXXXXXX or 2541XXXXXXXX.'
+            );
+        }
+    }
+
+    private function shortcode(string $number): void {
+        if (! preg_match('/^[0-9]{5,10}$/', $number)) {
+            throw new InvalidArgumentException(
+                'Shortcode must be a 5-10 digit number.'
+            );
+        }
+    }
+
+    private function callbackUrl(string $url): void {
+        if (
+            ! filter_var($url, FILTER_VALIDATE_URL)
+            || parse_url($url, PHP_URL_SCHEME) !== 'https'
+            || parse_url($url, PHP_URL_USER) !== null
+            || parse_url($url, PHP_URL_PASS) !== null
+        ) {
+            throw new InvalidArgumentException(
+                'Callback URL must be a valid HTTPS URL without embedded credentials.'
+            );
+        }
+    }
 }

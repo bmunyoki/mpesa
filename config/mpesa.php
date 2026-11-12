@@ -1,72 +1,49 @@
 <?php
 
 return [
+    'mpesa_env' => env('MPESA_ENV', 'sandbox'),
 
-     //Specify the environment mpesa is running, sandbox or production
-     'mpesa_env' => env('MPESA_ENV', 'sandbox'),
+    'consumer_key' => env('MPESA_CONSUMER_KEY'),
+    'consumer_secret' => env('MPESA_CONSUMER_SECRET'),
 
-    /*-----------------------------------------
-    |The App consumer key
-    |------------------------------------------
-    */
-    'consumer_key'   => env('MPESA_CONSUMER_KEY', ''),
-    'paybill_consumer_key'   => env('MPESA_PAYBILL_CONSUMER_KEY', ''),
-    'till_consumer_key'   => env('MPESA_TILL_CONSUMER_KEY', ''),
+    'paybill' => env('MPESA_PAYBILL'),
+    'till' => env('MPESA_TILL'),
+    'store_number' => env('MPESA_STORE_NUMBER'),
+    'passkey' => env('MPESA_PASSKEY'),
 
-    /*-----------------------------------------
-    |The App consumer Secret
-    |------------------------------------------
-    */
-    'consumer_secret' => env('MPESA_CONSUMER_SECRET', ''),
-    'paybill_consumer_secret' => env('MPESA_PAYBILL_CONSUMER_SECRET', ''),
-    'till_consumer_secret' => env('MPESA_TILL_CONSUMER_SECRET', ''),
+    'lnmo_callback_url' => env('MPESA_LNMO_CALLBACK'),
+    'c2b_validate_callback' => env('MPESA_VALIDATE_CALLBACK'),
+    'c2b_confirm_callback' => env('MPESA_CONFIRM_CALLBACK'),
+    'pull_callback_url' => env('MPESA_PULL_CALLBACK'),
 
-    /*-----------------------------------------
-    |The paybill number or till
-    |------------------------------------------
-    */
-    'paybill' => env('MPESA_PAYBILL', ''),
-    'till' => env('MPESA_TILL', ''),
+    'accounts' => [
+        'paybill' => [
+            'consumer_key' => env('MPESA_PAYBILL_CONSUMER_KEY'),
+            'consumer_secret' => env('MPESA_PAYBILL_CONSUMER_SECRET'),
+            'shortcode' => env('MPESA_PAYBILL'),
+            'party_b' => env('MPESA_PAYBILL'),
+            'passkey' => env('MPESA_PAYBILL_PASSKEY', env('MPESA_PASSKEY')),
+            'callback_url' => env('MPESA_LNMO_CALLBACK'),
+        ],
 
-    /*-----------------------------------------
-    |Lipa Na Mpesa (till) store number
-    |------------------------------------------
-    */
-    
-    'store_number'  => env('MPESA_STORE_NUMBER', ''),
+        'till' => [
+            'consumer_key' => env('MPESA_TILL_CONSUMER_KEY'),
+            'consumer_secret' => env('MPESA_TILL_CONSUMER_SECRET'),
+            'shortcode' => env('MPESA_STORE_NUMBER'),
+            'party_b' => env('MPESA_TILL'),
+            'passkey' => env('MPESA_TILL_PASSKEY', env('MPESA_PASSKEY')),
+            'callback_url' => env('MPESA_LNMO_CALLBACK'),
+        ],
+    ],
 
-    /*-----------------------------------------
-    |Lipa Na Mpesa Online Passkey
-    |------------------------------------------
-    */
-    'passkey' => env('MPESA_PASSKEY', ''),
+    'endpoint_versions' => [
+        'stk_query' => 'v1',
+        'c2b' => 'v2',
+        'b2c' => 'v1',
+    ],
 
-
-    /*-----------------------------------------
-    |Test phone Number
-    |------------------------------------------
-    */
-    'test_msisdn ' => '254728354249',
-
-    /*-----------------------------------------
-    |Lipa na Mpesa Online callback url
-    |------------------------------------------
-    */
-    'lnmo_callback_url' => env('MPESA_LNMO_CALLBACK', ''),
-
-     /*-----------------------------------------
-    |C2B  Validation url
-    |------------------------------------------
-    */
-    'c2b_validate_callback' => env('MPESA_VALIDATE_CALLBACK', ''),
-
-    /*-----------------------------------------
-    |C2B confirmation url
-    |------------------------------------------
-    */
-    'c2b_confirm_callback' => env('MPESA_CONFIRM_CALLBACK', ''),
-
-    
-    'pull_callback_url' => env('MPESA_PULL_CALLBACK', ''),
-
+    'http' => [
+        'connect_timeout' => 5,
+        'timeout' => 20,
+    ],
 ];
