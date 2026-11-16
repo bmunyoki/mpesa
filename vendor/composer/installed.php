@@ -3,7 +3,7 @@
         'name' => 'bmunyoki/mpesa',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '84c5cbfac7031e268f1b96b3f288553b5e24cd7b',
+        'reference' => 'b64ec3da05ada191ab9a58f72ccf127b8f396951',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'bmunyoki/mpesa' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '84c5cbfac7031e268f1b96b3f288553b5e24cd7b',
+            'reference' => 'b64ec3da05ada191ab9a58f72ccf127b8f396951',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -158,9 +158,9 @@
             'dev_requirement' => false,
         ),
         'guzzlehttp/psr7' => array(
-            'pretty_version' => '2.13.2',
-            'version' => '2.13.2.0',
-            'reference' => 'adee536f95101929f262b8c59e8a61472f347d58',
+            'pretty_version' => '2.13.3',
+            'version' => '2.13.3.0',
+            'reference' => '6d3cd8285a97eaa352956a4ada92fa03ecce1c4e',
             'type' => 'library',
             'install_path' => __DIR__ . '/../guzzlehttp/psr7',
             'aliases' => array(),
@@ -728,9 +728,9 @@
             'dev_requirement' => true,
         ),
         'phpunit/phpunit' => array(
-            'pretty_version' => '11.5.57',
-            'version' => '11.5.57.0',
-            'reference' => '36b75bf56a8535623f5b3e24b27ea1823759da1a',
+            'pretty_version' => '11.5.58',
+            'version' => '11.5.58.0',
+            'reference' => 'c14b3145a2fcfa5dd9b25ee999ce2ba5933adf6f',
             'type' => 'library',
             'install_path' => __DIR__ . '/../phpunit/phpunit',
             'aliases' => array(),
@@ -885,9 +885,9 @@
             'dev_requirement' => false,
         ),
         'ramsey/uuid' => array(
-            'pretty_version' => '4.9.4',
-            'version' => '4.9.4.0',
-            'reference' => '75d73f48d02797c2c285a7e9f348fadc0102ffe2',
+            'pretty_version' => '4.10.0',
+            'version' => '4.10.0.0',
+            'reference' => 'f9aa3efc8015fcbc013d84d699583b268ccb593a',
             'type' => 'library',
             'install_path' => __DIR__ . '/../ramsey/uuid',
             'aliases' => array(),
@@ -896,7 +896,7 @@
         'rhumsaa/uuid' => array(
             'dev_requirement' => false,
             'replaced' => array(
-                0 => '4.9.4',
+                0 => '4.10.0',
             ),
         ),
         'sebastian/cli-parser' => array(
@@ -1236,9 +1236,9 @@
             'dev_requirement' => false,
         ),
         'symfony/polyfill-php85' => array(
-            'pretty_version' => 'v1.43.0',
-            'version' => '1.43.0.0',
-            'reference' => '86a42cbcc07adc331481a5ab310a4024bfc227f6',
+            'pretty_version' => 'v1.44.0',
+            'version' => '1.44.0.0',
+            'reference' => '94c794cb5ba51784bc259f11e9f128593297d8dc',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/polyfill-php85',
             'aliases' => array(),

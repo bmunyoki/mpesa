@@ -34,12 +34,34 @@ return [
             'passkey' => env('MPESA_TILL_PASSKEY', env('MPESA_PASSKEY')),
             'callback_url' => env('MPESA_LNMO_CALLBACK'),
         ],
+
+        'b2c' => [
+            'consumer_key' => env('MPESA_B2C_CONSUMER_KEY'),
+            'consumer_secret' => env('MPESA_B2C_CONSUMER_SECRET'),
+
+            'shortcode' => env('MPESA_B2C_SHORTCODE'),
+
+            'initiator_name' => env('MPESA_B2C_INITIATOR_NAME'),
+            'initiator_password' => env('MPESA_B2C_INITIATOR_PASSWORD'),
+
+            'command_id' => env('MPESA_B2C_COMMAND_ID', 'BusinessPayment'),
+
+            'result_url' => env('MPESA_B2C_RESULT_URL'),
+            'timeout_url' => env('MPESA_B2C_TIMEOUT_URL'),
+
+            'allowed_callback_hosts' => array_values(array_filter(
+                array_map(
+                    'trim',
+                    explode(',', (string) env('MPESA_B2C_ALLOWED_CALLBACK_HOSTS', ''))
+                )
+            )),
+        ],
     ],
 
     'endpoint_versions' => [
         'stk_query' => 'v1',
         'c2b' => 'v2',
-        'b2c' => 'v1',
+        'b2c' => 'v3',
     ],
 
     'http' => [
