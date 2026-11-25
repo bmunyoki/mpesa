@@ -3,6 +3,7 @@
 namespace Bmunyoki\Mpesa\Tests;
 
 use Bmunyoki\Mpesa\Exceptions\MpesaException;
+use Bmunyoki\Mpesa\Exceptions\DarajaAcknowledgementException;
 use Bmunyoki\Mpesa\Facades\Mpesa;
 use Bmunyoki\Mpesa\MpesaServiceProvider;
 use Illuminate\Http\Client\Request;
@@ -196,19 +197,34 @@ class ReversalTest extends TestCase {
         }
     }
 
+    
     public function test_nonzero_acknowledgement_is_not_treated_as_success(): void {
-        $this->fakeDaraja(['ResponseCode' => '1001']);
+        $this->fakeDaraja([
+            'ResponseCode' => '1001',
+        ]);
 
         try {
-            Mpesa::using('reversal')->sendReversal('LGR019G3J2', 500);
+            Mpesa::using('reversal')->sendReversal(
+                'LGR019G3J2',
+                500
+            );
 
-            $this->fail('Expected reversal acknowledgement exception.');
-        } catch (MpesaException $exception) {
-            $this->assertStringContainsString('reconcile', $exception->getMessage());
+            $this->fail('Expected DarajaAcknowledgementException.');
+        } catch (DarajaAcknowledgementException $exception) {
+            $this->assertSame('reversal', $exception->getOperation());
+            $this->assertSame('1001', $exception->getResponseCode());
+
+            $this->assertSame([
+                'operation' => 'reversal',
+                'provider_response_code' => '1001',
+            ], $exception->context());
         }
 
+        // One OAuth request and one reversal request.
+        // No automatic retry.
         Http::assertSentCount(2);
     }
+
 
     public function test_only_reversal_profile_can_use_high_level_method(): void {
         Http::fake();

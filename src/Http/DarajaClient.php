@@ -90,7 +90,13 @@ class DarajaClient {
             );
         }
 
-        $this->assertSuccessful($response, 'request');
+        $operation = match (true) {
+            str_starts_with(ltrim($path, '/'), 'mpesa/b2c/') => 'b2c',
+            str_starts_with(ltrim($path, '/'), 'mpesa/reversal/') => 'reversal',
+            default => 'request',
+        };
+
+        $this->assertSuccessful($response, $operation);
 
         $data = $response->json();
 
@@ -140,29 +146,41 @@ class DarajaClient {
         return max(1, (int) config('mpesa.http.timeout', 20));
     }
 
-    private function assertSuccessful(
-        Response $response,
-        string $operation
-    ): void {
+    
+    private function assertSuccessful(Response $response, string $operation): void {
         if ($response->successful()) {
             return;
         }
 
-        $code = $this->safeProviderIdentifier(
-            $response->json('errorCode')
-        );
+        $providerCode = $response->json('errorCode');
+        $safeProviderCode = null;
 
-        $requestId = $this->safeProviderIdentifier(
-            $response->json('requestId')
-        );
+        if (is_string($providerCode) || is_int($providerCode)) {
+            $value = (string) $providerCode;
+
+            if (preg_match('/\A[a-zA-Z0-9._-]{1,64}\z/', $value)) {
+                $safeProviderCode = $value;
+            }
+        }
+
+        $requestId = $response->header('X-Request-ID');
+        $safeRequestId = null;
+
+        if (
+            is_string($requestId)
+            && preg_match('/\A[a-zA-Z0-9._-]{1,128}\z/', $requestId)
+        ) {
+            $safeRequestId = $requestId;
+        }
 
         throw new DarajaHttpException(
             operation: $operation,
             httpStatus: $response->status(),
-            providerErrorCode: $code,
-            providerRequestId: $requestId
+            providerErrorCode: $safeProviderCode,
+            providerRequestId: $safeRequestId
         );
     }
+
 
     private function safeProviderIdentifier(
         mixed $value

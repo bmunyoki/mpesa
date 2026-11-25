@@ -327,13 +327,30 @@ class Mpesa {
             $data
         );
 
-        if ((string) ($response['ResponseCode'] ?? '') !== '0') {
-            throw new MpesaException(
-                'Daraja did not acknowledge the B2C request. Reconcile its outcome before retrying.'
+        $responseCode = $response['ResponseCode'] ?? null;
+
+        if ((string) $responseCode !== '0') {
+            $safeResponseCode = null;
+
+            if (
+                is_string($responseCode) ||
+                is_int($responseCode)
+            ) {
+                $value = (string) $responseCode;
+
+                if (preg_match('/\A[a-zA-Z0-9._-]{1,64}\z/', $value)) {
+                    $safeResponseCode = $value;
+                }
+            }
+
+            throw new DarajaAcknowledgementException(
+                operation: 'b2c',
+                responseCode: $safeResponseCode
             );
         }
 
         return $response;
+
     }
     
     public function sendB2C(

@@ -3,6 +3,8 @@
 namespace Bmunyoki\Mpesa\Tests;
 
 use Bmunyoki\Mpesa\Exceptions\MpesaException;
+use Bmunyoki\Mpesa\Exceptions\DarajaAcknowledgementException;
+use Bmunyoki\Mpesa\Exceptions\DarajaHttpException;
 use Bmunyoki\Mpesa\Facades\Mpesa;
 use Bmunyoki\Mpesa\MpesaServiceProvider;
 use Illuminate\Http\Client\Request;
@@ -55,6 +57,47 @@ class B2cTest extends TestCase {
             ),
         ]);
     }
+
+
+    public function test_b2c_http_failure_throws_daraja_http_exception(): void {
+        Http::fake([
+            'https://sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response([
+                'access_token' => 'test-token',
+                'expires_in' => 3600,
+            ]),
+
+            'https://sandbox.safaricom.co.ke/mpesa/b2c/*' => Http::response([
+                'errorCode' => '400.001',
+                'errorMessage' => 'Request rejected',
+            ], 400),
+        ]);
+
+        try {
+            Mpesa::using('b2c')->sendB2C(
+                phone: '254712345678',
+                amount: 500,
+                remarks: 'Customer payout',
+                originatorConversationId: 'PAYOUT_10004'
+            );
+
+            $this->fail('Expected DarajaHttpException.');
+        } catch (DarajaHttpException $exception) {
+            $this->assertSame('b2c', $exception->getOperation());
+            $this->assertSame(400, $exception->getHttpStatus());
+            $this->assertSame('400.001', $exception->getProviderErrorCode());
+            $this->assertNull($exception->getProviderRequestId());
+
+            $this->assertSame([
+                'operation' => 'b2c',
+                'http_status' => 400,
+                'provider_error_code' => '400.001',
+                'provider_request_id' => null,
+            ], $exception->context());
+        }
+
+        Http::assertSentCount(2);
+    }
+
 
     public function test_defaults_and_b2c_credentials(): void {
         $this->fakeDaraja();
@@ -163,8 +206,11 @@ class B2cTest extends TestCase {
         }
     }
 
+    
     public function test_nonzero_acknowledgement_throws_without_retry(): void {
-        $this->fakeDaraja(['ResponseCode' => '1005']);
+        $this->fakeDaraja([
+            'ResponseCode' => '1005',
+        ]);
 
         try {
             Mpesa::using('b2c')->sendB2C(
@@ -174,16 +220,102 @@ class B2cTest extends TestCase {
                 'PAYOUT_10006'
             );
 
-            $this->fail('Expected B2C acknowledgement exception.');
-        } catch (MpesaException $exception) {
-            $this->assertStringContainsString(
-                'Reconcile',
+            $this->fail('Expected DarajaAcknowledgementException.');
+        } catch (DarajaAcknowledgementException $exception) {
+            $this->assertSame('b2c', $exception->getOperation());
+            $this->assertSame('1005', $exception->getResponseCode());
+
+            $this->assertSame([
+                'operation' => 'b2c',
+                'provider_response_code' => '1005',
+            ], $exception->context());
+        }
+
+        // One OAuth request and one B2C request.
+        // Confirm no automatic retry occurred.
+        Http::assertSentCount(2);
+    }
+
+
+
+    public function test_b2c_nonzero_acknowledgement_throws_structured_exception(): void {
+        $this->fakeDaraja([
+            'ResponseCode' => '1001',
+            'ResponseDescription' => 'Request rejected',
+        ]);
+
+        try {
+            Mpesa::using('b2c')->sendB2C(
+                phone: '254712345678',
+                amount: 500,
+                remarks: 'Customer payout',
+                originatorConversationId: 'PAYOUT_10001'
+            );
+
+            $this->fail('Expected DarajaAcknowledgementException.');
+        } catch (DarajaAcknowledgementException $exception) {
+            $this->assertSame('b2c', $exception->getOperation());
+            $this->assertSame('1001', $exception->getResponseCode());
+
+            $this->assertSame([
+                'operation' => 'b2c',
+                'provider_response_code' => '1001',
+            ], $exception->context());
+        }
+
+        Http::assertSentCount(2);
+    }
+
+
+    public function test_b2c_missing_acknowledgement_code_is_rejected(): void {
+        $this->fakeDaraja([
+            'ResponseDescription' => 'Unexpected response',
+        ]);
+
+        try {
+            Mpesa::using('b2c')->sendB2C(
+                phone: '254712345678',
+                amount: 500,
+                remarks: 'Customer payout',
+                originatorConversationId: 'PAYOUT_10002'
+            );
+
+            $this->fail('Expected DarajaAcknowledgementException.');
+        } catch (DarajaAcknowledgementException $exception) {
+            $this->assertSame('b2c', $exception->getOperation());
+            $this->assertNull($exception->getResponseCode());
+        }
+
+        Http::assertSentCount(2);
+    }
+
+
+    public function test_b2c_unsafe_provider_code_is_not_exposed(): void {
+        $this->fakeDaraja([
+            'ResponseCode' => '<script>alert(1)</script>',
+        ]);
+
+        try {
+            Mpesa::using('b2c')->sendB2C(
+                phone: '254712345678',
+                amount: 500,
+                remarks: 'Customer payout',
+                originatorConversationId: 'PAYOUT_10003'
+            );
+
+            $this->fail('Expected DarajaAcknowledgementException.');
+        } catch (DarajaAcknowledgementException $exception) {
+            $this->assertNull($exception->getResponseCode());
+
+            $this->assertStringNotContainsString(
+                '<script>',
                 $exception->getMessage()
             );
         }
 
         Http::assertSentCount(2);
     }
+
 
     public function test_v1_endpoint_remains_available(): void {
         config()->set('mpesa.endpoint_versions.b2c', 'v1');
