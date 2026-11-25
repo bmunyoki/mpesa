@@ -58,7 +58,6 @@ class B2cTest extends TestCase {
         ]);
     }
 
-
     public function test_b2c_http_failure_throws_daraja_http_exception(): void {
         Http::fake([
             'https://sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response([
@@ -87,12 +86,50 @@ class B2cTest extends TestCase {
             $this->assertSame('400.001', $exception->getProviderErrorCode());
             $this->assertNull($exception->getProviderRequestId());
 
+            $this->assertSame(
+                'Unclassified provider error description.',
+                $exception->getProviderErrorMessage()
+            );
+
             $this->assertSame([
                 'operation' => 'b2c',
                 'http_status' => 400,
                 'provider_error_code' => '400.001',
                 'provider_request_id' => null,
+                'provider_error_message' => 'Unclassified provider error description.',
             ], $exception->context());
+        }
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_b2c_recognized_provider_error_message_is_preserved(): void {
+        Http::fake([
+            'https://sandbox.safaricom.co.ke/oauth/v1/generate*' => Http::response([
+                'access_token' => 'test-token',
+                'expires_in' => 3600,
+            ]),
+
+            'https://sandbox.safaricom.co.ke/mpesa/b2c/*' => Http::response([
+                'errorCode' => '400.002',
+                'errorMessage' => 'Bad Request - Invalid Amount',
+            ], 400),
+        ]);
+
+        try {
+            Mpesa::using('b2c')->sendB2C(
+                phone: '254712345678',
+                amount: 500,
+                remarks: 'Customer payout',
+                originatorConversationId: 'PAYOUT_10005'
+            );
+
+            $this->fail('Expected DarajaHttpException.');
+        } catch (DarajaHttpException $exception) {
+            $this->assertSame('b2c', $exception->getOperation());
+            $this->assertSame(400, $exception->getHttpStatus());
+            $this->assertSame('400.002', $exception->getProviderErrorCode());
+            $this->assertSame('Invalid Amount', $exception->getProviderErrorMessage());
         }
 
         Http::assertSentCount(2);

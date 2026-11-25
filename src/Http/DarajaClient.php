@@ -132,6 +132,65 @@ class DarajaClient {
         return [$key, $secret];
     }
 
+    private function safeProviderErrorMessage(
+        mixed $value
+    ): ?string {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        // Only retain recognized provider validation messages.
+        // Do not include arbitrary values echoed from the request.
+        if (preg_match(
+            '/\A(?:Bad Request\s*-\s*)?Invalid\s+([A-Za-z][A-Za-z0-9_]{0,63})\.?\z/i',
+            $value,
+            $matches
+        )) {
+            $allowedFields = [
+                'Amount',
+                'TransactionID',
+                'ReceiverParty',
+                'RecieverIdentifierType',
+                'ReceiverIdentifierType',
+                'Initiator',
+                'InitiatorName',
+                'SecurityCredential',
+                'CommandID',
+                'ResultURL',
+                'QueueTimeOutURL',
+                'Remarks',
+                'Occasion',
+                'BusinessShortCode',
+                'ShortCode',
+                'PhoneNumber',
+            ];
+
+            foreach ($allowedFields as $field) {
+                if (strcasecmp($field, $matches[1]) === 0) {
+                    return 'Invalid ' . $field;
+                }
+            }
+        }
+
+        $allowedMessages = [
+            'Bad Request',
+            'Bad Request - Invalid Initiator Information',
+            'Invalid Initiator Information',
+            'Unauthorized',
+            'Forbidden',
+            'Internal Server Error',
+            'Service Unavailable',
+        ];
+
+        if (in_array($value, $allowedMessages, true)) {
+            return $value;
+        }
+
+        return 'Unclassified provider error description.';
+    }
+
     private function baseUrl(): string {
         return $this->environment() === 'production'
             ? 'https://api.safaricom.co.ke'
@@ -177,7 +236,10 @@ class DarajaClient {
             operation: $operation,
             httpStatus: $response->status(),
             providerErrorCode: $safeProviderCode,
-            providerRequestId: $safeRequestId
+            providerRequestId: $safeRequestId,
+            providerErrorMessage: $this->safeProviderErrorMessage(
+                $response->json('errorMessage')
+            )
         );
     }
 

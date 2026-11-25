@@ -8,7 +8,8 @@ class DarajaHttpException extends MpesaException {
         private string $operation,
         private int $httpStatus,
         private ?string $providerErrorCode = null,
-        private ?string $providerRequestId = null
+        private ?string $providerRequestId = null,
+        private ?string $providerErrorMessage = null
     ) {
         $message = sprintf(
             'Daraja %s failed (HTTP %d).',
@@ -43,12 +44,17 @@ class DarajaHttpException extends MpesaException {
         return $this->providerRequestId;
     }
 
+    public function getProviderErrorMessage(): ?string {
+        return $this->providerErrorMessage;
+    }
+
     public function context(): array {
         return [
             'operation' => $this->operation,
             'http_status' => $this->httpStatus,
             'provider_error_code' => $this->providerErrorCode,
             'provider_request_id' => $this->providerRequestId,
+            'provider_error_message' => $this->providerErrorMessage,
         ];
     }
 }
