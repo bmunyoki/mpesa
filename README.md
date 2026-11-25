@@ -388,6 +388,172 @@ $response = Mpesa::simulateC2B(
 );
 ```
 
+
+## M-Pesa Transaction Reversal
+
+The package supports Safaricom's Reversal API.
+
+It allows an authorized business to request a reversal of an existing M-Pesa transaction.
+
+### Configuration
+
+Add the reversal credentials to your Laravel application's `.env`:
+
+```dotenv
+MPESA_REVERSAL_CONSUMER_KEY=
+MPESA_REVERSAL_CONSUMER_SECRET=
+MPESA_REVERSAL_SHORTCODE=
+MPESA_REVERSAL_INITIATOR_NAME=
+MPESA_REVERSAL_INITIATOR_PASSWORD=
+MPESA_REVERSAL_RECEIVER_IDENTIFIER_TYPE=4
+MPESA_REVERSAL_REMARKS="Transaction reversal"
+MPESA_REVERSAL_OCCASION="Customer refund"
+MPESA_REVERSAL_RESULT_URL=https://example.com/reversal/result
+MPESA_REVERSAL_TIMEOUT_URL=https://example.com/reversal/timeout
+MPESA_REVERSAL_ALLOWED_CALLBACK_HOSTS=example.com
+```
+
+The selected Daraja application, business shortcode and initiator must be authorized by Safaricom for reversals.
+
+### Initiate a reversal
+
+```php
+use Bmunyoki\Mpesa\Facades\Mpesa;
+
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: 500
+);
+```
+
+The transaction ID is the original M-Pesa transaction receipt/reference.
+
+The SDK reads the initiator credentials, shortcode and callback URLs from the published configuration.
+
+### Provide reversal details
+
+```php
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: 500,
+    receiverParty: '600000',
+    receiverIdentifierType: 4,
+    remarks: 'Refund for cancelled order',
+    occasion: 'Order cancellation'
+);
+```
+
+`ReceiverParty` must identify the appropriate authorized receiver for the transaction, typically the merchant shortcode in Safaricom's reversal example.
+
+The available identifier types include 1, 2, 4 and 11, subject to the merchant's activated Daraja product.
+
+### Override callback URLs
+
+Each reversal request may provide its own result and timeout URL:
+
+```php
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: 500,
+    resultUrl: 'https://example.com/custom/result',
+    timeoutUrl: 'https://example.com/custom/timeout'
+);
+```
+
+Either URL can be overridden without overriding the other.
+
+When omitted or null, the configured default is used.
+
+An empty string is rejected.
+
+### Callback hostname allowlist
+
+Configure the approved callback destinations:
+
+```dotenv
+MPESA_REVERSAL_ALLOWED_CALLBACK_HOSTS=example.com,callbacks.example.com
+```
+
+The SDK requires HTTPS callback URLs.
+
+If a callback hostname allowlist is configured, every URL must use an approved hostname.
+
+Never pass untrusted user input directly as a callback URL.
+
+### Exact amounts
+
+Positive whole KES amounts can be supplied as integers.
+
+To preserve two decimal places without floating-point conversion, use a decimal string:
+
+```php
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: '125.50'
+);
+```
+
+The consuming application must validate the reversal amount against the original transaction.
+
+### Reversal API acknowledgement
+
+The immediate Daraja response confirms whether the reversal request was accepted for processing.
+
+An accepted request does not establish that the reversal has completed.
+
+Store the returned ConversationID and OriginatorConversationID where provided.
+
+### Reversal result callback
+
+Safaricom delivers the outcome asynchronously to ResultURL.
+
+The callback may contain:
+
+- Result.ResultCode
+- Result.ResultDesc
+- Result.TransactionID
+- Result.ConversationID
+- Result.OriginatorConversationID
+
+The application must match the result to the pending reversal and verify the original transaction details before updating its financial ledger.
+
+Process repeated callback deliveries idempotently.
+
+Do not assume the callback is authentic solely because it reached the expected URL.
+
+### Reversal timeout callback
+
+A timeout means the outcome is uncertain.
+
+Do not automatically repeat the reversal.
+
+Reconcile the original request using the supported Safaricom transaction status facilities or authorized merchant records.
+
+### Legacy method
+
+The original reverseTransaction() method is retained:
+
+```php
+$response = Mpesa::using('reversal')->reverseTransaction(
+    initiatorUsername: 'testapi',
+    initiatorPassword: $initiatorPassword,
+    timeoutUrl: 'https://example.com/reversal/timeout',
+    resultUrl: 'https://example.com/reversal/result',
+    receiver: '600000',
+    transactionId: 'LGR019G3J2',
+    amount: 500
+);
+```
+
+For new integrations, sendReversal() is recommended.
+
+### Security
+
+A production application should restrict reversal initiation to authorized personnel and services, validate the original transaction and amount, enforce unique reversal records, and maintain an audit trail.
+
+The SDK does not automatically create payment tables or webhook controllers.
+
+
 ## Other APIs
 
 The package also provides:

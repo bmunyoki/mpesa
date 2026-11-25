@@ -481,35 +481,123 @@ class Mpesa {
         string $resultUrl,
         string $receiver,
         string $transactionId,
-        int $amount,
-        int $receiverIdentifierType = 4
+        int|string $amount,
+        int $receiverIdentifierType = 4,
+        string $remarks = 'Transaction reversal',
+        ?string $occasion = null
     ): array {
-        $this->required($initiatorUsername, 'Initiator username');
-        $this->required($receiver, 'ReceiverParty');
-        $this->required($transactionId, 'TransactionID');
-        $this->positiveAmount($amount);
-        $this->callbackUrl($timeoutUrl);
-        $this->callbackUrl($resultUrl);
+        $this->required($initiatorUsername, 'Reversal initiator username');
+        $this->required($initiatorPassword, 'Reversal initiator password');
 
-        if (! in_array($receiverIdentifierType, [1, 2, 4], true)) {
+        if (! preg_match('/^[A-Za-z0-9_-]{6,64}$/', $transactionId)) {
+            throw new InvalidArgumentException('Invalid original M-Pesa TransactionID.');
+        }
+
+        if (is_int($amount)) {
+            $this->positiveAmount($amount);
+        } elseif (
+            ! preg_match('/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/', $amount)
+            || preg_match('/^0(?:\.0{1,2})?$/', $amount)
+        ) {
             throw new InvalidArgumentException(
-                'Receiver identifier type must be 1, 2 or 4.'
+                'Reversal amount must be a positive KES amount with at most two decimal places.'
             );
         }
 
-        return $this->request('mpesa/reversal/v1/request', [
-            'CommandID' => 'TransactionReversal',
-            'ReceiverParty' => $receiver,
-            'RecieverIdentifierType' => $receiverIdentifierType,
-            'Remarks' => 'Transaction reversal',
-            'Amount' => $amount,
+        if (! in_array($receiverIdentifierType, [1, 2, 4, 11], true)) {
+            throw new InvalidArgumentException('Invalid reversal receiver identifier type.');
+        }
+
+        if ($receiverIdentifierType === 1) {
+            $this->phone($receiver);
+        } else {
+            $this->shortcode($receiver);
+        }
+
+        if (trim($remarks) === '' || strlen($remarks) > 100) {
+            throw new InvalidArgumentException('Reversal remarks must be 1-100 characters.');
+        }
+
+        if ($occasion !== null && (trim($occasion) === '' || strlen($occasion) > 100)) {
+            throw new InvalidArgumentException('Reversal occasion must be 1-100 characters.');
+        }
+
+        $this->validateReversalCallbackUrl($timeoutUrl);
+        $this->validateReversalCallbackUrl($resultUrl);
+
+        $payload = [
             'Initiator' => $initiatorUsername,
             'SecurityCredential' => $this->setCred($initiatorPassword),
-            'QueueTimeOutURL' => $timeoutUrl,
-            'ResultURL' => $resultUrl,
+            'CommandID' => 'TransactionReversal',
             'TransactionID' => $transactionId,
-        ]);
+            'Amount' => $amount,
+            'ReceiverParty' => $receiver,
+            'RecieverIdentifierType' => (string) $receiverIdentifierType,
+            'ResultURL' => $resultUrl,
+            'QueueTimeOutURL' => $timeoutUrl,
+            'Remarks' => $remarks,
+        ];
+
+        if ($occasion !== null) {
+            $payload['Occasion'] = $occasion;
+        }
+
+        $response = $this->request('mpesa/reversal/v1/request', $payload);
+
+        if ((string) ($response['ResponseCode'] ?? '') !== '0') {
+            throw new MpesaException(
+                'Daraja did not acknowledge the reversal request as accepted. '
+                .'The outcome may be unknown; reconcile before retrying.'
+            );
+        }
+
+        return $response;
     }
+
+
+    public function sendReversal(
+        string $transactionId,
+        int|string $amount,
+        ?string $receiverParty = null,
+        ?int $receiverIdentifierType = null,
+        ?string $remarks = null,
+        ?string $occasion = null,
+        ?string $resultUrl = null,
+        ?string $timeoutUrl = null
+    ): array {
+        if ($this->profile !== 'reversal') {
+            throw new InvalidArgumentException(
+                'Select the reversal profile using Mpesa::using("reversal").'
+            );
+        }
+
+        $account = config('mpesa.accounts.reversal', []);
+
+        if (! is_array($account)) {
+            throw new MpesaException('The reversal account configuration is invalid.');
+        }
+
+        $receiverParty ??= $account['shortcode'] ?? '';
+        $receiverIdentifierType ??= (int) ($account['receiver_identifier_type'] ?? 4);
+        $remarks ??= $account['remarks'] ?? 'Transaction reversal';
+        $occasion ??= $account['occasion'] ?? null;
+        $resultUrl ??= $account['result_url'] ?? '';
+        $timeoutUrl ??= $account['timeout_url'] ?? '';
+
+        return $this->reverseTransaction(
+            initiatorUsername: (string) ($account['initiator_name'] ?? ''),
+            initiatorPassword: (string) ($account['initiator_password'] ?? ''),
+            timeoutUrl: $timeoutUrl,
+            resultUrl: $resultUrl,
+            receiver: $receiverParty,
+            transactionId: $transactionId,
+            amount: $amount,
+            receiverIdentifierType: $receiverIdentifierType,
+            remarks: $remarks,
+            occasion: $occasion
+        );
+    }
+
 
     public function pullRegisterUrl(
         string $nominatedNumber,
@@ -659,5 +747,31 @@ class Mpesa {
             );
         }
     }
+
+    
+    private function validateReversalCallbackUrl(string $url): void {
+        $this->callbackUrl($url);
+
+        $allowedHosts = config('mpesa.accounts.reversal.allowed_callback_hosts', []);
+
+        if (! is_array($allowedHosts)) {
+            throw new MpesaException('Reversal callback host allowlist must be an array.');
+        }
+
+        if ($allowedHosts === []) {
+            return;
+        }
+
+        $hostname = strtolower(rtrim((string) parse_url($url, PHP_URL_HOST), '.'));
+        $hosts = array_map(
+            fn ($host) => strtolower(rtrim((string) $host, '.')),
+            $allowedHosts
+        );
+
+        if (! in_array($hostname, $hosts, true)) {
+            throw new InvalidArgumentException('Reversal callback host is not allowlisted.');
+        }
+    }
+
 
 }

@@ -56,6 +56,33 @@ return [
                 )
             )),
         ],
+
+        
+        'reversal' => [
+            'consumer_key' => env('MPESA_REVERSAL_CONSUMER_KEY'),
+            'consumer_secret' => env('MPESA_REVERSAL_CONSUMER_SECRET'),
+
+            'shortcode' => env('MPESA_REVERSAL_SHORTCODE'),
+
+            'initiator_name' => env('MPESA_REVERSAL_INITIATOR_NAME'),
+            'initiator_password' => env('MPESA_REVERSAL_INITIATOR_PASSWORD'),
+
+            'receiver_identifier_type' => (int) env('MPESA_REVERSAL_RECEIVER_IDENTIFIER_TYPE', 4),
+
+            'remarks' => env('MPESA_REVERSAL_REMARKS', 'Transaction reversal'),
+            'occasion' => env('MPESA_REVERSAL_OCCASION'),
+
+            'result_url' => env('MPESA_REVERSAL_RESULT_URL'),
+            'timeout_url' => env('MPESA_REVERSAL_TIMEOUT_URL'),
+
+            'allowed_callback_hosts' => array_values(array_filter(
+                array_map(
+                    'trim',
+                    explode(',', (string) env('MPESA_REVERSAL_ALLOWED_CALLBACK_HOSTS', ''))
+                )
+            )),
+        ],
+
     ],
 
     'endpoint_versions' => [
