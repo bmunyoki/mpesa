@@ -3,6 +3,7 @@
 namespace Bmunyoki\Mpesa;
 
 use Bmunyoki\Mpesa\Exceptions\MpesaException;
+use Bmunyoki\Mpesa\Exceptions\DarajaAcknowledgementException;
 use Bmunyoki\Mpesa\Http\DarajaClient;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -544,10 +545,28 @@ class Mpesa {
 
         $response = $this->request('mpesa/reversal/v1/request', $payload);
 
-        if ((string) ($response['ResponseCode'] ?? '') !== '0') {
-            throw new MpesaException(
-                'Daraja did not acknowledge the reversal request as accepted. '
-                .'The outcome may be unknown; reconcile before retrying.'
+        $responseCode = $response['ResponseCode'] ?? null;
+
+        if ((string) $responseCode !== '0') {
+            $safeResponseCode = null;
+
+            if (
+                is_string($responseCode) ||
+                is_int($responseCode)
+            ) {
+                $value = (string) $responseCode;
+
+                if (preg_match(
+                    '/\A[a-zA-Z0-9._-]{1,64}\z/',
+                    $value
+                )) {
+                    $safeResponseCode = $value;
+                }
+            }
+
+            throw new DarajaAcknowledgementException(
+                operation: 'reversal',
+                responseCode: $safeResponseCode
             );
         }
 

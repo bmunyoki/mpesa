@@ -3,6 +3,7 @@
 namespace Bmunyoki\Mpesa\Http;
 
 use Bmunyoki\Mpesa\Exceptions\MpesaException;
+use Bmunyoki\Mpesa\Exceptions\DarajaHttpException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -139,20 +140,44 @@ class DarajaClient {
         return max(1, (int) config('mpesa.http.timeout', 20));
     }
 
-    private function assertSuccessful(Response $response, string $operation): void {
+    private function assertSuccessful(
+        Response $response,
+        string $operation
+    ): void {
         if ($response->successful()) {
             return;
         }
 
-        $code = $response->json('errorCode');
-
-        $safeCode = is_string($code)
-            && preg_match('/^[a-zA-Z0-9._-]{1,64}$/', $code)
-                ? " Provider code: {$code}."
-                : '';
-
-        throw new MpesaException(
-            "Daraja {$operation} failed (HTTP {$response->status()}).{$safeCode}"
+        $code = $this->safeProviderIdentifier(
+            $response->json('errorCode')
         );
+
+        $requestId = $this->safeProviderIdentifier(
+            $response->json('requestId')
+        );
+
+        throw new DarajaHttpException(
+            operation: $operation,
+            httpStatus: $response->status(),
+            providerErrorCode: $code,
+            providerRequestId: $requestId
+        );
+    }
+
+    private function safeProviderIdentifier(
+        mixed $value
+    ): ?string {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        if (!preg_match(
+            '/\A[a-zA-Z0-9._-]{1,150}\z/',
+            $value
+        )) {
+            return null;
+        }
+
+        return $value;
     }
 }
