@@ -135,7 +135,6 @@ class B2cTest extends TestCase {
         Http::assertSentCount(2);
     }
 
-
     public function test_defaults_and_b2c_credentials(): void {
         $this->fakeDaraja();
 
