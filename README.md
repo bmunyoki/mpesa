@@ -1,35 +1,44 @@
 # bmunyoki/mpesa
 
-A Laravel integration package for Safaricom's M-Pesa Daraja API.
+[![Latest Stable Version](https://poser.pugx.org/bmunyoki/mpesa/v/stable)](https://packagist.org/packages/bmunyoki/mpesa)
+[![Total Downloads](https://poser.pugx.org/bmunyoki/mpesa/downloads)](https://packagist.org/packages/bmunyoki/mpesa)
+[![License](https://poser.pugx.org/bmunyoki/mpesa/license)](https://packagist.org/packages/bmunyoki/mpesa)
 
-Version 5.0 modernizes the original SDK with PHP 8.2+, Laravel's HTTP client, OAuth token caching, credential profiles, input validation and exception handling.
+A Laravel integration package for the Safaricom M-Pesa Daraja API.
+
+The package provides a convenient interface for M-Pesa payment collection, disbursements, transaction queries and related operations.
 
 ## Features
 
 - STK Push (Paybill and Buy Goods)
-- STK Push status query
-- C2B URL registration and sandbox simulation
-- B2C payments
+- STK Push status queries
+- C2B URL registration and simulation
+- B2C payouts (v1 and v3)
 - B2B payments
-- Account balance queries
 - Transaction status queries
+- Account balance queries
 - Transaction reversals
 - Pull transaction registration and queries
 - Multiple Daraja credential profiles
+- OAuth token caching
+- Laravel HTTP client
+- Exception handling and input validation
+- Configurable B2C callback URLs
+- Optional callback hostname allowlisting
 
 ## Requirements
 
-- PHP 8.2 or newer
-- Laravel 11, 12 or 13
-- OpenSSL extension
-- Safaricom Daraja application credentials
+- PHP 8.2+
+- A supported Laravel installation
+- PHP OpenSSL extension
+- Safaricom Daraja API credentials
 
 ## Installation
 
-Install with Composer:
+Once v5.0.1 is published, install using Composer:
 
 ```bash
-composer require bmunyoki/mpesa:^5.0
+composer require bmunyoki/mpesa:^5.0.1
 ```
 
 Publish the configuration:
@@ -38,65 +47,306 @@ Publish the configuration:
 php artisan vendor:publish --tag=mpesa-config
 ```
 
-## Configuration
+This creates:
 
-Add the following to the Laravel application's `.env`:
+```text
+config/mpesa.php
+```
+
+Set the appropriate environment:
 
 ```dotenv
 MPESA_ENV=sandbox
-MPESA_CONSUMER_KEY=your-consumer-key
-MPESA_CONSUMER_SECRET=your-consumer-secret
-MPESA_PAYBILL=174379
-MPESA_PASSKEY=your-passkey
-MPESA_LNMO_CALLBACK=https://example.com/webhooks/stk
 ```
 
-Supported environments:
+Use `production` when your live Daraja credentials and products are activated.
 
-- `sandbox`
-- `production`
+## Configuration
 
-Never commit live credentials into source control.
+The package supports separate profiles for Paybill, Till and B2C.
 
-## STK Push (Paybill)
+Example:
+
+```dotenv
+MPESA_ENV=sandbox
+
+# Default Daraja credentials
+MPESA_CONSUMER_KEY=
+MPESA_CONSUMER_SECRET=
+
+# Paybill
+MPESA_PAYBILL_CONSUMER_KEY=
+MPESA_PAYBILL_CONSUMER_SECRET=
+MPESA_PAYBILL=
+MPESA_PAYBILL_PASSKEY=
+
+# Buy Goods
+MPESA_TILL_CONSUMER_KEY=
+MPESA_TILL_CONSUMER_SECRET=
+MPESA_STORE_NUMBER=
+MPESA_TILL=
+MPESA_TILL_PASSKEY=
+
+# B2C
+MPESA_B2C_CONSUMER_KEY=
+MPESA_B2C_CONSUMER_SECRET=
+MPESA_B2C_SHORTCODE=
+MPESA_B2C_INITIATOR_NAME=
+MPESA_B2C_INITIATOR_PASSWORD=
+MPESA_B2C_COMMAND_ID=BusinessPayment
+MPESA_B2C_RESULT_URL=https://example.com/api/mpesa/b2c/result
+MPESA_B2C_TIMEOUT_URL=https://example.com/api/mpesa/b2c/timeout
+MPESA_B2C_ALLOWED_CALLBACK_HOSTS=example.com
+```
+
+Only configure the products you intend to use.
+
+Never commit live credentials to Git.
+
+## B2C — Business to Customer
+
+B2C transfers money from a Safaricom-enabled business shortcode to an M-Pesa customer.
+
+Supported commands:
+
+- `BusinessPayment`
+- `SalaryPayment`
+- `PromotionPayment`
+
+The merchant must have an activated B2C product and authorized initiator credentials.
+
+### B2C credentials
+
+The B2C profile needs:
+
+- Consumer key and secret
+- B2C shortcode
+- Initiator username
+- Initiator password
+- Result callback URL
+- Timeout callback URL
+
+The initiator password is RSA-encrypted using the appropriate bundled Safaricom public certificate.
+
+The package includes certificates in `src/cert/`.
+
+### Default B2C payout
 
 ```php
 use Bmunyoki\Mpesa\Facades\Mpesa;
 
-$response = Mpesa::stkPush(
+$response = Mpesa::using('b2c')->sendB2C(
+    phone: '254712345678',
+    amount: 500,
+    remarks: 'Customer payout',
+    originatorConversationId: $payout->originator_conversation_id
+);
+```
+
+The example assumes `$payout` is an existing, persisted payout record.
+
+The package uses the result and timeout URLs configured in `config/mpesa.php`.
+
+### Override the result URL
+
+```php
+$response = Mpesa::using('b2c')->sendB2C(
+    phone: '254712345678',
+    amount: 500,
+    remarks: 'Customer payout',
+    originatorConversationId: $payout->originator_conversation_id,
+    resultUrl: 'https://example.com/api/custom/result'
+);
+```
+
+The timeout URL still uses the configured default.
+
+### Override the timeout URL
+
+```php
+$response = Mpesa::using('b2c')->sendB2C(
+    phone: '254712345678',
+    amount: 500,
+    remarks: 'Customer payout',
+    originatorConversationId: $payout->originator_conversation_id,
+    timeoutUrl: 'https://example.com/api/custom/timeout'
+);
+```
+
+The result URL still uses the configured default.
+
+### Override both URLs
+
+```php
+$response = Mpesa::using('b2c')->sendB2C(
+    phone: '254712345678',
+    amount: 500,
+    remarks: 'Customer payout',
+    originatorConversationId: $payout->originator_conversation_id,
+    resultUrl: 'https://example.com/api/custom/result',
+    timeoutUrl: 'https://example.com/api/custom/timeout'
+);
+```
+
+Each override is independent.
+
+Passing `null` selects the configured default. Passing an empty string is an error.
+
+If neither a configured value nor an override is available for a required URL, the package throws an exception.
+
+### Salary payments
+
+```php
+$response = Mpesa::using('b2c')->sendB2C(
+    phone: '254712345678',
+    amount: 15000,
+    remarks: 'Monthly salary',
+    originatorConversationId: $payout->originator_conversation_id,
+    commandId: 'SalaryPayment'
+);
+```
+
+### Promotional payouts
+
+```php
+$response = Mpesa::using('b2c')->sendB2C(
+    phone: '254712345678',
+    amount: 500,
+    remarks: 'Promotional reward',
+    originatorConversationId: $payout->originator_conversation_id,
+    commandId: 'PromotionPayment',
+    occasion: 'Customer reward'
+);
+```
+
+### B2C v3 correlation ID
+
+The `originatorConversationId` must be unique for each payout.
+
+Generate it in the consuming application and persist it before contacting Safaricom.
+
+For example:
+
+```php
+use Illuminate\Support\Str;
+
+$originatorId = (string) Str::uuid();
+```
+
+Store the identifier with the recipient, amount and internal payout reference.
+
+Do not generate a different identifier simply because a request timed out.
+
+### B2C API response
+
+An accepted request typically includes fields such as:
+
+```json
+{
+    "ConversationID": "AG_example",
+    "OriginatorConversationID": "PAYOUT_10001",
+    "ResponseCode": "0",
+    "ResponseDescription": "Accept the service request successfully"
+}
+```
+
+The values above are illustrative.
+
+**ResponseCode 0 indicates request acceptance, not completed payment.**
+
+Safaricom processes B2C transactions asynchronously.
+
+Store the response identifiers and wait for the final transaction result.
+
+### B2C result callback
+
+Safaricom sends the final outcome to `ResultURL`.
+
+The response commonly includes:
+
+- `Result.ResultCode`
+- `Result.ResultDesc`
+- `Result.OriginatorConversationID`
+- `Result.ConversationID`
+- `Result.TransactionID`
+- `Result.ResultParameters`
+
+The consuming application must correlate the callback with its stored payout and independently validate the expected recipient, amount and transaction.
+
+Do not grant funds or mark a payout completed solely from an unverified incoming HTTP request.
+
+### B2C timeout callback
+
+Safaricom may send timeout notifications to `QueueTimeOutURL`.
+
+A timeout does not establish that the transaction failed.
+
+Mark the payout as unresolved and reconcile its status before initiating another disbursement.
+
+### Callback hostname allowlist
+
+You can restrict B2C callbacks to trusted hostnames:
+
+```dotenv
+MPESA_B2C_ALLOWED_CALLBACK_HOSTS=example.com,callbacks.example.com
+```
+
+Both configured and overridden URLs must use HTTPS.
+
+If the allowlist is configured, each URL must use one of the specified hostnames.
+
+Avoid passing user-controlled URLs directly to the SDK.
+
+### Legacy B2C method
+
+The lower-level `b2c()` method remains available for existing integrations:
+
+```php
+$response = Mpesa::using('b2c')->b2c(
+    paybillOrTill: '600000',
+    initiatorUsername: 'testapi',
+    initiatorPassword: $password,
+    amount: 500,
+    phone: '254712345678',
+    commandId: 'BusinessPayment',
+    remarks: 'Customer payout',
+    b2cTimeoutUrl: 'https://example.com/b2c/timeout',
+    b2cResultUrl: 'https://example.com/b2c/result',
+    originatorConversationId: 'PAYOUT_10001'
+);
+```
+
+The high-level `sendB2C()` method is recommended for new integrations because sensitive credentials are read from the configured profile.
+
+### B2C endpoint versions
+
+The default is B2C v3.
+
+To use the older v1 endpoint, configure:
+
+```php
+'endpoint_versions' => [
+    'stk_query' => 'v1',
+    'c2b' => 'v2',
+    'b2c' => 'v1',
+],
+```
+
+B2C v1 does not use the merchant-generated v3 conversation ID in the same way.
+
+The application must still persist the returned request identifiers and reconcile its payouts.
+
+## STK Push (Paybill)
+
+```php
+$response = Mpesa::using('paybill')->stkPush(
     phone: '254712345678',
     amount: 100,
     reference: 'INV123'
 );
-
-$checkoutRequestId = $response['CheckoutRequestID'] ?? null;
 ```
 
-An accepted STK request is not proof of payment.
-
-Persist the CheckoutRequestID with an internal pending payment record and reconcile the asynchronous outcome before granting goods or services.
-
-## STK Status Query
-
-```php
-$response = Mpesa::stkQuery('ws_CO_your_checkout_request_id');
-```
-
-Use this method to investigate pending payments where the callback has not arrived.
-
-## STK Push (Till / Buy Goods)
-
-Configure the Till credentials:
-
-```dotenv
-MPESA_TILL_CONSUMER_KEY=your-key
-MPESA_TILL_CONSUMER_SECRET=your-secret
-MPESA_STORE_NUMBER=your-store-number
-MPESA_TILL=your-till-number
-MPESA_TILL_PASSKEY=your-passkey
-```
-
-Then:
+## STK Push (Buy Goods)
 
 ```php
 $response = Mpesa::using('till')->stkPush(
@@ -107,19 +357,25 @@ $response = Mpesa::using('till')->stkPush(
 );
 ```
 
-The BusinessShortCode is the store number, while PartyB is the Till number.
+## STK Status Query
+
+```php
+$response = Mpesa::using('paybill')->stkQuery(
+    'ws_CO_checkout_request_id'
+);
+```
 
 ## C2B URL Registration
 
 ```php
 $response = Mpesa::c2bRegisterUrls(
     '600000',
-    'https://example.com/webhooks/c2b/confirmation',
-    'https://example.com/webhooks/c2b/validation'
+    'https://example.com/c2b/confirmation',
+    'https://example.com/c2b/validation'
 );
 ```
 
-## Simulate C2B
+## C2B Simulation
 
 Sandbox only:
 
@@ -132,25 +388,184 @@ $response = Mpesa::simulateC2B(
 );
 ```
 
-## B2C Payment
+
+## M-Pesa Transaction Reversal
+
+The package supports Safaricom's Reversal API.
+
+It allows an authorized business to request a reversal of an existing M-Pesa transaction.
+
+### Configuration
+
+Add the reversal credentials to your Laravel application's `.env`:
+
+```dotenv
+MPESA_REVERSAL_CONSUMER_KEY=
+MPESA_REVERSAL_CONSUMER_SECRET=
+MPESA_REVERSAL_SHORTCODE=
+MPESA_REVERSAL_INITIATOR_NAME=
+MPESA_REVERSAL_INITIATOR_PASSWORD=
+MPESA_REVERSAL_RECEIVER_IDENTIFIER_TYPE=4
+MPESA_REVERSAL_REMARKS="Transaction reversal"
+MPESA_REVERSAL_OCCASION="Customer refund"
+MPESA_REVERSAL_RESULT_URL=https://example.com/reversal/result
+MPESA_REVERSAL_TIMEOUT_URL=https://example.com/reversal/timeout
+MPESA_REVERSAL_ALLOWED_CALLBACK_HOSTS=example.com
+```
+
+The selected Daraja application, business shortcode and initiator must be authorized by Safaricom for reversals.
+
+### Initiate a reversal
 
 ```php
-$response = Mpesa::b2c(
-    '600000',
-    'api-initiator',
-    $initiatorPassword,
-    100,
-    '254712345678',
-    'BusinessPayment',
-    'Payout',
-    'https://example.com/webhooks/b2c/timeout',
-    'https://example.com/webhooks/b2c/result'
+use Bmunyoki\Mpesa\Facades\Mpesa;
+
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: 500
 );
 ```
 
-The SDK encrypts the initiator password using the appropriate bundled public certificate.
+The transaction ID is the original M-Pesa transaction receipt/reference.
 
-Retrieve the initiator password from a secure secret source.
+The SDK reads the initiator credentials, shortcode and callback URLs from the published configuration.
+
+### Provide reversal details
+
+```php
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: 500,
+    receiverParty: '600000',
+    receiverIdentifierType: 4,
+    remarks: 'Refund for cancelled order',
+    occasion: 'Order cancellation'
+);
+```
+
+`ReceiverParty` must identify the appropriate authorized receiver for the transaction, typically the merchant shortcode in Safaricom's reversal example.
+
+The available identifier types include 1, 2, 4 and 11, subject to the merchant's activated Daraja product.
+
+### Override callback URLs
+
+Each reversal request may provide its own result and timeout URL:
+
+```php
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: 500,
+    resultUrl: 'https://example.com/custom/result',
+    timeoutUrl: 'https://example.com/custom/timeout'
+);
+```
+
+Either URL can be overridden without overriding the other.
+
+When omitted or null, the configured default is used.
+
+An empty string is rejected.
+
+### Callback hostname allowlist
+
+Configure the approved callback destinations:
+
+```dotenv
+MPESA_REVERSAL_ALLOWED_CALLBACK_HOSTS=example.com,callbacks.example.com
+```
+
+The SDK requires HTTPS callback URLs.
+
+If a callback hostname allowlist is configured, every URL must use an approved hostname.
+
+Never pass untrusted user input directly as a callback URL.
+
+### Exact amounts
+
+Positive whole KES amounts can be supplied as integers.
+
+To preserve two decimal places without floating-point conversion, use a decimal string:
+
+```php
+$response = Mpesa::using('reversal')->sendReversal(
+    transactionId: 'LGR019G3J2',
+    amount: '125.50'
+);
+```
+
+The consuming application must validate the reversal amount against the original transaction.
+
+### Reversal API acknowledgement
+
+The immediate Daraja response confirms whether the reversal request was accepted for processing.
+
+An accepted request does not establish that the reversal has completed.
+
+Store the returned ConversationID and OriginatorConversationID where provided.
+
+### Reversal result callback
+
+Safaricom delivers the outcome asynchronously to ResultURL.
+
+The callback may contain:
+
+- Result.ResultCode
+- Result.ResultDesc
+- Result.TransactionID
+- Result.ConversationID
+- Result.OriginatorConversationID
+
+The application must match the result to the pending reversal and verify the original transaction details before updating its financial ledger.
+
+Process repeated callback deliveries idempotently.
+
+Do not assume the callback is authentic solely because it reached the expected URL.
+
+### Reversal timeout callback
+
+A timeout means the outcome is uncertain.
+
+Do not automatically repeat the reversal.
+
+Reconcile the original request using the supported Safaricom transaction status facilities or authorized merchant records.
+
+### Legacy method
+
+The original reverseTransaction() method is retained:
+
+```php
+$response = Mpesa::using('reversal')->reverseTransaction(
+    initiatorUsername: 'testapi',
+    initiatorPassword: $initiatorPassword,
+    timeoutUrl: 'https://example.com/reversal/timeout',
+    resultUrl: 'https://example.com/reversal/result',
+    receiver: '600000',
+    transactionId: 'LGR019G3J2',
+    amount: 500
+);
+```
+
+For new integrations, sendReversal() is recommended.
+
+### Security
+
+A production application should restrict reversal initiation to authorized personnel and services, validate the original transaction and amount, enforce unique reversal records, and maintain an audit trail.
+
+The SDK does not automatically create payment tables or webhook controllers.
+
+
+## Other APIs
+
+The package also provides:
+
+- `b2b()` for business-to-business transfers
+- `checkBalance()` for account balance requests
+- `statusRequest()` for transaction status queries
+- `reverseTransaction()` for supported reversals
+- `pullRegisterUrl()` for Pull API registration
+- `pullAPI()` for transaction retrieval
+
+These methods remain available through the package facade.
 
 ## Error Handling
 
@@ -158,36 +573,41 @@ Retrieve the initiator password from a secure secret source.
 use Bmunyoki\Mpesa\Exceptions\MpesaException;
 
 try {
-    $response = Mpesa::stkPush(
-        '254712345678',
-        100,
-        'INV123'
+    $response = Mpesa::using('b2c')->sendB2C(
+        phone: '254712345678',
+        amount: 500,
+        remarks: 'Customer payout',
+        originatorConversationId: $payout->originator_conversation_id
     );
-} catch (MpesaException $exception) {
-    // Handle an API or transport failure.
 } catch (\InvalidArgumentException $exception) {
-    // Handle an invalid request.
+    // Invalid configuration or request input.
+} catch (MpesaException $exception) {
+    // Daraja or transport failure.
+    // Reconcile the outcome before retrying.
 }
 ```
 
-A transport failure may leave a payment outcome unknown. Reconcile before trying again.
+A network failure can leave the payout outcome unknown.
 
-## Security
+## Security Responsibilities
 
-The package does not automatically register webhook routes or change payment statuses.
+The package handles outbound API authentication and requests.
 
-Consuming applications must:
+It does not automatically register webhook endpoints, maintain payment tables, authenticate incoming callbacks or mark payments as successful.
 
-- Validate incoming callback payloads.
-- Correlate callbacks with pending payment records.
-- Compare expected and reported amounts.
-- Enforce idempotent payment processing.
-- Reconcile final payment status independently when needed.
-- Protect credentials and personally identifiable information.
-- Restrict payment initiation and reversal permissions.
-- Avoid logging raw credentials, tokens or sensitive payment payloads.
+Consuming applications are responsible for:
 
-Daraja callbacks must not be assumed to carry a verifiable cryptographic signature.
+1. Persisting payment requests before sending.
+2. Maintaining unique payout identifiers and database constraints.
+3. Processing callbacks idempotently.
+4. Comparing expected and returned transaction details.
+5. Reconciling uncertain payout outcomes.
+6. Protecting internal payout initiation endpoints.
+7. Validating webhook authenticity using controls appropriate to the integration.
+8. Keeping initiator passwords and access tokens secret.
+9. Restricting who can initiate or approve payouts.
+
+Never assume a callback is authentic solely because it reached the designated URL.
 
 ## Testing
 
@@ -196,20 +616,23 @@ composer update
 composer test
 ```
 
-## Upgrading from v4.1
+Tests mock Daraja HTTP calls and must not initiate real disbursements.
+
+## Upgrading
 
 See [UPGRADE.md](UPGRADE.md).
 
-Version 5.0 changes response types and some method signatures.
-
 ## Contributing
 
-Issues and pull requests are welcome on GitHub.
+Contributions and pull requests are welcome.
 
-Security vulnerabilities should be reported privately to:
+Repository:
+https://github.com/bmunyoki/mpesa
+
+For security vulnerabilities, contact:
 
 munyokibenjamin@gmail.com
 
 ## License
 
-MIT License. See [LICENSE.md](LICENSE.md).
+MIT. See [LICENSE.md](LICENSE.md).
